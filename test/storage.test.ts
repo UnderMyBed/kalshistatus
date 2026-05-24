@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
-import { saveSnapshot, loadLatestSnapshot, pruneSnapshots, saveRegionProbe, loadRecentRegionProbes } from '../src/storage';
+import {
+  saveSnapshot,
+  loadLatestSnapshot,
+  pruneSnapshots,
+  saveRegionProbe,
+  loadRecentRegionProbes,
+} from '../src/storage';
 import type { Snapshot, RegionProbe } from '../src/types';
 
 function makeSnapshot(environment: 'prod' | 'demo', ts: number): Snapshot {

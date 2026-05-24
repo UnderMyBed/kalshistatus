@@ -49,9 +49,12 @@ export async function handleApiStatus(request: Request, env: Env): Promise<Respo
   const sinceMs = Date.now() - 2 * 60 * 1000;
   const regions = await loadRecentRegionProbes(env.DB, environment, sinceMs);
 
-  return Response.json({ ...snapshot, regions }, {
-    headers: { ...CORS, 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' },
-  });
+  return Response.json(
+    { ...snapshot, regions },
+    {
+      headers: { ...CORS, 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' },
+    },
+  );
 }
 
 export async function handleApiHistory(request: Request, env: Env): Promise<Response> {

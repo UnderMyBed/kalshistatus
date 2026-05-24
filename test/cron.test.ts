@@ -100,8 +100,9 @@ describe('runFastCron', () => {
   it('does not save a region probe when colo is unknown', async () => {
     const mockFetch = makeMockFetch(200, TRACE_UNKNOWN);
     await runFastCron(env, mockFetch);
-    const row = await env.DB.prepare('SELECT COUNT(*) as cnt FROM region_probes')
-      .first<{ cnt: number }>();
+    const row = await env.DB.prepare('SELECT COUNT(*) as cnt FROM region_probes').first<{
+      cnt: number;
+    }>();
     expect(row!.cnt).toBe(0);
   });
 });

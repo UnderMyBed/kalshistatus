@@ -29,18 +29,20 @@ describe('coloToRegion', () => {
 
 describe('detectRegion', () => {
   it('returns region when trace response contains colo', async () => {
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response('fl=123\nip=1.2.3.4\nts=1234\nvisit_scheme=https\nuag=\ncolo=IAD\nsliver=none\n'),
-    );
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          'fl=123\nip=1.2.3.4\nts=1234\nvisit_scheme=https\nuag=\ncolo=IAD\nsliver=none\n',
+        ),
+      );
     const region = await detectRegion(mockFetch);
     expect(region).toBe('us-east');
     expect(mockFetch).toHaveBeenCalledWith('https://cloudflare.com/cdn-cgi/trace');
   });
 
   it('returns null when colo is not in the known set', async () => {
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response('colo=SFO\n'),
-    );
+    const mockFetch = vi.fn().mockResolvedValue(new Response('colo=SFO\n'));
     const region = await detectRegion(mockFetch);
     expect(region).toBeNull();
   });

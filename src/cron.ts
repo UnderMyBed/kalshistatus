@@ -58,7 +58,7 @@ export async function runFastCron(env: Env, fetchFn: typeof fetch = fetch): Prom
   ]);
 
   const isCanonical = region === null || region === 'us-east';
-  const saves: Promise<void>[] = [
+  const saves: Promise<unknown>[] = [
     saveSnapshot(env.DB, prodSnap),
     saveSnapshot(env.DB, demoSnap),
   ];
@@ -68,10 +68,18 @@ export async function runFastCron(env: Env, fetchFn: typeof fetch = fetch): Prom
   }
   if (region !== null) {
     saves.push(
-      saveRegionProbe(env.DB, 'prod', { region, probed_at: prodSnap.ts, endpoints: prodSnap.endpoints }),
+      saveRegionProbe(env.DB, 'prod', {
+        region,
+        probed_at: prodSnap.ts,
+        endpoints: prodSnap.endpoints,
+      }),
     );
     saves.push(
-      saveRegionProbe(env.DB, 'demo', { region, probed_at: demoSnap.ts, endpoints: demoSnap.endpoints }),
+      saveRegionProbe(env.DB, 'demo', {
+        region,
+        probed_at: demoSnap.ts,
+        endpoints: demoSnap.endpoints,
+      }),
     );
   }
   await Promise.all(saves);
