@@ -15,9 +15,18 @@ describe('getEndpointDefs', () => {
     }
   });
 
-  it('includes exchange_status endpoint', () => {
+  it('includes exchange_status endpoint flagged as public', () => {
     const defs = getEndpointDefs('https://api.example.com');
-    expect(defs.some((d) => d.name === 'exchange_status')).toBe(true);
+    const ex = defs.find((d) => d.name === 'exchange_status');
+    expect(ex).toBeDefined();
+    expect(ex!.requires_auth).toBe(false);
+  });
+
+  it('flags portfolio_* endpoints as requires_auth', () => {
+    const defs = getEndpointDefs('https://api.example.com');
+    const portfolio = defs.filter((d) => d.name.startsWith('portfolio_'));
+    expect(portfolio.length).toBe(4);
+    for (const d of portfolio) expect(d.requires_auth).toBe(true);
   });
 });
 
@@ -49,39 +58,56 @@ describe('buildAuthHeaders', () => {
 });
 
 describe('probeEndpoint', () => {
+  const def = {
+    name: 'exchange_status',
+    url: 'https://api.example.com/exchange/status',
+    method: 'GET',
+    requires_auth: false,
+  };
+
   it('returns up status for 200 response', async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
-    const result = await probeEndpoint(
-      { name: 'exchange_status', url: 'https://api.example.com/exchange/status', method: 'GET' },
-      {},
-      mockFetch,
-    );
-    expect(result.status).toBe('up');
-    expect(result.http_status).toBe(200);
-    expect(result.latency_ms).not.toBeNull();
+    const { probe } = await probeEndpoint(def, {}, mockFetch);
+    expect(probe.status).toBe('up');
+    expect(probe.http_status).toBe(200);
+    expect(probe.latency_ms).not.toBeNull();
   });
 
   it('returns down status for 500 response', async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response(null, { status: 500 }));
-    const result = await probeEndpoint(
-      { name: 'exchange_status', url: 'https://api.example.com/exchange/status', method: 'GET' },
-      {},
-      mockFetch,
-    );
-    expect(result.status).toBe('down');
-    expect(result.http_status).toBe(500);
+    const { probe } = await probeEndpoint(def, {}, mockFetch);
+    expect(probe.status).toBe('down');
+    expect(probe.http_status).toBe(500);
   });
 
   it('returns down status on network error', async () => {
     const mockFetch = vi.fn().mockRejectedValue(new Error('network failure'));
-    const result = await probeEndpoint(
-      { name: 'exchange_status', url: 'https://api.example.com/exchange/status', method: 'GET' },
-      {},
-      mockFetch,
+    const { probe } = await probeEndpoint(def, {}, mockFetch);
+    expect(probe.status).toBe('down');
+    expect(probe.http_status).toBeNull();
+    expect(probe.error).toBe('network failure');
+    expect(probe.latency_ms).toBeNull();
+  });
+
+  it('parses JSON body when content-type is application/json and status is ok', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ exchange_active: true, trading_active: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
     );
-    expect(result.status).toBe('down');
-    expect(result.http_status).toBeNull();
-    expect(result.error).toBe('network failure');
-    expect(result.latency_ms).toBeNull();
+    const { body } = await probeEndpoint(def, {}, mockFetch);
+    expect(body).toEqual({ exchange_active: true, trading_active: true });
+  });
+
+  it('returns null body when response is non-JSON', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response('plain text', {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      }),
+    );
+    const { body } = await probeEndpoint(def, {}, mockFetch);
+    expect(body).toBeNull();
   });
 });

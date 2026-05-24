@@ -5,7 +5,7 @@ import { saveSnapshot, saveRegionProbe } from '../src/storage';
 import { writeSnapshotIfChanged } from '../src/kv';
 
 const SCHEMA = `CREATE TABLE IF NOT EXISTS snapshots (ts INTEGER NOT NULL, environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), payload TEXT NOT NULL, PRIMARY KEY (environment, ts))`;
-const REGION_SCHEMA = `CREATE TABLE IF NOT EXISTS region_probes (environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), region TEXT NOT NULL CHECK (region IN ('us-east', 'eu-west', 'asia')), probed_at INTEGER NOT NULL, payload TEXT NOT NULL, PRIMARY KEY (environment, region))`;
+const REGION_SCHEMA = `CREATE TABLE IF NOT EXISTS region_probes (environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), region TEXT NOT NULL CHECK (region IN ('us-east', 'eu-west', 'asia')), probed_at INTEGER NOT NULL, payload TEXT NOT NULL, PRIMARY KEY (environment, region, probed_at))`;
 
 function makeSnap(overrides: Partial<Snapshot> = {}): Snapshot {
   return {
@@ -26,6 +26,18 @@ function makeSnap(overrides: Partial<Snapshot> = {}): Snapshot {
   };
 }
 
+const CACHEABLE_TEST_URLS = [
+  'https://example.com/api/status?env=prod',
+  'https://example.com/api/status?env=demo',
+  'https://example.com/api/history?env=prod&limit=2',
+  'https://example.com/api/history?env=prod&limit=3',
+  'https://example.com/api/history?env=prod&limit=5',
+  'https://example.com/badge.svg?env=prod',
+  'https://example.com/api/changelog?limit=10',
+  'https://example.com/api/version',
+  'https://example.com/feed.xml',
+];
+
 beforeEach(async () => {
   await env.DB.exec(SCHEMA);
   await env.DB.exec(REGION_SCHEMA);
@@ -33,6 +45,9 @@ beforeEach(async () => {
   await env.DB.prepare('DELETE FROM region_probes').run();
   const list = await env.KALSHI_KV.list();
   for (const k of list.keys) await env.KALSHI_KV.delete(k.name);
+  for (const u of CACHEABLE_TEST_URLS) {
+    await caches.default.delete(new Request(u, { method: 'GET' }));
+  }
 });
 
 describe('GET /api/status', () => {
@@ -81,6 +96,23 @@ describe('GET /api/status', () => {
     const body = (await res.json()) as Snapshot;
     expect(body.regions).toHaveLength(1);
     expect(body.regions[0].region).toBe('us-east');
+  });
+
+  it('collapses multiple probes per region to the most recent one', async () => {
+    const snap = makeSnap();
+    await saveSnapshot(env.DB, snap);
+    await writeSnapshotIfChanged(env.KALSHI_KV, snap);
+    const now = Date.now();
+    await saveRegionProbe(env.DB, 'prod', {
+      region: 'us-east',
+      probed_at: now - 60_000,
+      endpoints: [],
+    });
+    await saveRegionProbe(env.DB, 'prod', { region: 'us-east', probed_at: now, endpoints: [] });
+    const res = await SELF.fetch('https://example.com/api/status?env=prod');
+    const body = (await res.json()) as Snapshot;
+    expect(body.regions).toHaveLength(1);
+    expect(body.regions[0].probed_at).toBe(now);
   });
 
   it('excludes stale region probes older than 60 minutes', async () => {

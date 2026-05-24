@@ -16,24 +16,12 @@ export function determineStatus(probes: EndpointProbe[]): OverallStatus {
   return 'operational';
 }
 
-export async function extractExchangeStatus(
-  probes: EndpointProbe[],
-  exchangeStatusUrl: string,
-  fetchFn: typeof fetch,
-): Promise<ExchangeStatus> {
+export function exchangeStatusFromBody(body: unknown): ExchangeStatus {
   const fallback: ExchangeStatus = { exchange_active: false, trading_active: false };
-  const exchangeProbe = probes.find((p) => p.name === 'exchange_status');
-  if (!exchangeProbe || exchangeProbe.status !== 'up') return fallback;
-
-  try {
-    const res = await fetchFn(exchangeStatusUrl);
-    if (!res.ok) return fallback;
-    const body = await res.json<{ exchange_active?: boolean; trading_active?: boolean }>();
-    return {
-      exchange_active: body.exchange_active === true,
-      trading_active: body.trading_active === true,
-    };
-  } catch {
-    return fallback;
-  }
+  if (typeof body !== 'object' || body === null) return fallback;
+  const b = body as { exchange_active?: unknown; trading_active?: unknown };
+  return {
+    exchange_active: b.exchange_active === true,
+    trading_active: b.trading_active === true,
+  };
 }

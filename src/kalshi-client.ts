@@ -43,11 +43,16 @@ async function signMessage(key: CryptoKey, message: string): Promise<string> {
   return btoa(new Uint8Array(signature).reduce((s, b) => s + String.fromCharCode(b), ''));
 }
 
+export interface ProbeOutcome {
+  probe: EndpointProbe;
+  body: unknown;
+}
+
 export async function probeEndpoint(
   def: EndpointDef,
   authHeaders: Record<string, string>,
   fetchFn: typeof fetch = fetch,
-): Promise<EndpointProbe> {
+): Promise<ProbeOutcome> {
   const start = Date.now();
   try {
     const res = await fetchFn(def.url, {
@@ -57,25 +62,33 @@ export async function probeEndpoint(
     });
     const latency_ms = Date.now() - start;
     const status: EndpointStatus = res.ok ? 'up' : 'down';
+    const contentType = res.headers.get('content-type') ?? '';
+    const body = res.ok && contentType.includes('application/json') ? await res.json() : null;
     return {
-      name: def.name,
-      url: def.url,
-      method: def.method,
-      latency_ms,
-      status,
-      http_status: res.status,
-      requires_auth: def.requires_auth,
+      probe: {
+        name: def.name,
+        url: def.url,
+        method: def.method,
+        latency_ms,
+        status,
+        http_status: res.status,
+        requires_auth: def.requires_auth,
+      },
+      body,
     };
   } catch (err) {
     return {
-      name: def.name,
-      url: def.url,
-      method: def.method,
-      latency_ms: null,
-      status: 'down',
-      http_status: null,
-      requires_auth: def.requires_auth,
-      error: err instanceof Error ? err.message : String(err),
+      probe: {
+        name: def.name,
+        url: def.url,
+        method: def.method,
+        latency_ms: null,
+        status: 'down',
+        http_status: null,
+        requires_auth: def.requires_auth,
+        error: err instanceof Error ? err.message : String(err),
+      },
+      body: null,
     };
   }
 }

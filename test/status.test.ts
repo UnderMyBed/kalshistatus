@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { determineStatus, extractExchangeStatus } from '../src/status';
+import { determineStatus, exchangeStatusFromBody } from '../src/status';
 import type { EndpointProbe } from '../src/types';
 
 function probe(
   name: string,
   status: 'up' | 'down' | 'degraded' | 'unknown',
   http_status = 200,
+  requires_auth = false,
 ): EndpointProbe {
   return {
     name,
@@ -14,6 +15,7 @@ function probe(
     latency_ms: 10,
     status,
     http_status,
+    requires_auth,
   };
 }
 
@@ -23,12 +25,12 @@ describe('determineStatus', () => {
     expect(determineStatus(probes)).toBe('operational');
   });
 
-  it('returns major_outage when all endpoints are down', () => {
+  it('returns major_outage when all public endpoints are down', () => {
     const probes = Array.from({ length: 8 }, (_, i) => probe(`ep${i}`, 'down'));
     expect(determineStatus(probes)).toBe('major_outage');
   });
 
-  it('returns partial_outage when more than half are down', () => {
+  it('returns partial_outage when more than half of public probes are down', () => {
     const probes = [
       probe('ep0', 'up'),
       probe('ep1', 'up'),
@@ -55,20 +57,17 @@ describe('determineStatus', () => {
     expect(determineStatus(probes)).toBe('degraded');
   });
 
-  it('returns unknown when probes array is empty', () => {
+  it('returns unknown when no public probes are present', () => {
     expect(determineStatus([])).toBe('unknown');
+    expect(determineStatus([probe('portfolio_balance', 'down', 401, true)])).toBe('unknown');
   });
 
   it('treats exchange_status down as major_outage regardless of others', () => {
     const probes = [
       probe('exchange_status', 'down'),
-      probe('ep1', 'up'),
-      probe('ep2', 'up'),
-      probe('ep3', 'up'),
-      probe('ep4', 'up'),
-      probe('ep5', 'up'),
-      probe('ep6', 'up'),
-      probe('ep7', 'up'),
+      probe('markets_list', 'up'),
+      probe('events_list', 'up'),
+      probe('series_list', 'up'),
     ];
     expect(determineStatus(probes)).toBe('major_outage');
   });
@@ -76,89 +75,70 @@ describe('determineStatus', () => {
   it('treats exchange_status degraded as major_outage', () => {
     const probes = [
       probe('exchange_status', 'degraded'),
-      ...Array.from({ length: 7 }, (_, i) => probe(`ep${i}`, 'up')),
+      probe('markets_list', 'up'),
+      probe('events_list', 'up'),
+      probe('series_list', 'up'),
     ];
     expect(determineStatus(probes)).toBe('major_outage');
   });
 
-  it('counts degraded probes toward non-operational ratio', () => {
+  it('ignores authenticated probes when computing headline', () => {
     const probes = [
-      probe('ep0', 'up'),
-      probe('ep1', 'degraded'),
-      probe('ep2', 'degraded'),
-      probe('ep3', 'unknown'),
-      probe('ep4', 'degraded'),
-      probe('ep5', 'degraded'),
+      probe('exchange_status', 'up'),
+      probe('markets_list', 'up'),
+      probe('events_list', 'up'),
+      probe('series_list', 'up'),
+      probe('portfolio_balance', 'down', 401, true),
+      probe('portfolio_positions', 'down', 401, true),
+      probe('portfolio_orders', 'down', 401, true),
+      probe('portfolio_fills', 'down', 401, true),
     ];
-    expect(determineStatus(probes)).toBe('partial_outage');
+    expect(determineStatus(probes)).toBe('operational');
   });
 
-  it('returns major_outage when all probes are degraded/unknown', () => {
-    const probes = [probe('ep0', 'degraded'), probe('ep1', 'unknown'), probe('ep2', 'degraded')];
-    expect(determineStatus(probes)).toBe('major_outage');
+  it('does not let an auth probe failure tip the headline to degraded', () => {
+    const probes = [
+      probe('exchange_status', 'up'),
+      probe('markets_list', 'up'),
+      probe('events_list', 'up'),
+      probe('series_list', 'up'),
+      probe('portfolio_balance', 'unknown', null as unknown as number, true),
+    ];
+    expect(determineStatus(probes)).toBe('operational');
   });
 });
 
-describe('extractExchangeStatus', () => {
-  it('returns active flags when body has them set to true', async () => {
-    const mockFetch = () =>
-      Promise.resolve(
-        new Response(JSON.stringify({ exchange_active: true, trading_active: true }), {
-          status: 200,
-        }),
-      );
-    const probes = [probe('exchange_status', 'up')];
-    const result = await extractExchangeStatus(
-      probes,
-      'https://api.example.com/exchange/status',
-      mockFetch as typeof fetch,
-    );
-    expect(result.exchange_active).toBe(true);
-    expect(result.trading_active).toBe(true);
+describe('exchangeStatusFromBody', () => {
+  it('reads exchange_active and trading_active from a parsed body', () => {
+    expect(exchangeStatusFromBody({ exchange_active: true, trading_active: true })).toEqual({
+      exchange_active: true,
+      trading_active: true,
+    });
+    expect(exchangeStatusFromBody({ exchange_active: false, trading_active: true })).toEqual({
+      exchange_active: false,
+      trading_active: true,
+    });
   });
 
-  it('returns false flags when exchange_status probe is down', async () => {
-    const probes = [probe('exchange_status', 'down', 500)];
-    const result = await extractExchangeStatus(
-      probes,
-      'https://api.example.com/exchange/status',
-      fetch,
-    );
-    expect(result.exchange_active).toBe(false);
-    expect(result.trading_active).toBe(false);
+  it('returns false flags for null / non-object body', () => {
+    expect(exchangeStatusFromBody(null)).toEqual({
+      exchange_active: false,
+      trading_active: false,
+    });
+    expect(exchangeStatusFromBody('nonsense')).toEqual({
+      exchange_active: false,
+      trading_active: false,
+    });
   });
 
-  it('returns false flags when fetch returns non-2xx', async () => {
-    const mockFetch = () => Promise.resolve(new Response('Service Unavailable', { status: 503 }));
-    const probes = [probe('exchange_status', 'up')];
-    const result = await extractExchangeStatus(
-      probes,
-      'https://api.example.com/exchange/status',
-      mockFetch as typeof fetch,
-    );
-    expect(result.exchange_active).toBe(false);
-    expect(result.trading_active).toBe(false);
-  });
-
-  it('returns false flags when body parse fails', async () => {
-    const mockFetch = () => Promise.resolve(new Response('not-json', { status: 200 }));
-    const probes = [probe('exchange_status', 'up')];
-    const result = await extractExchangeStatus(
-      probes,
-      'https://api.example.com/exchange/status',
-      mockFetch as typeof fetch,
-    );
-    expect(result.exchange_active).toBe(false);
-    expect(result.trading_active).toBe(false);
-  });
-
-  it('returns false flags when exchange_status probe is missing', async () => {
-    const result = await extractExchangeStatus(
-      [],
-      'https://api.example.com/exchange/status',
-      fetch,
-    );
-    expect(result.exchange_active).toBe(false);
-    expect(result.trading_active).toBe(false);
+  it('returns false flags when fields are missing or non-boolean', () => {
+    expect(exchangeStatusFromBody({})).toEqual({
+      exchange_active: false,
+      trading_active: false,
+    });
+    expect(exchangeStatusFromBody({ exchange_active: 'yes', trading_active: 1 })).toEqual({
+      exchange_active: false,
+      trading_active: false,
+    });
   });
 });
