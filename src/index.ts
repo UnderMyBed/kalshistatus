@@ -1,4 +1,5 @@
 import type { Env } from './types';
+import { runFastCron, runSlowCron } from './cron';
 
 export default {
   async fetch(request: Request, _env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -11,7 +12,11 @@ export default {
     return new Response('Not Found', { status: 404 });
   },
 
-  async scheduled(_event: ScheduledEvent, _env: Env, _ctx: ExecutionContext): Promise<void> {
-    // Cron dispatch wired in Phase 5
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (event.cron === '0 * * * *') {
+      ctx.waitUntil(runSlowCron(env));
+    } else {
+      ctx.waitUntil(runFastCron(env));
+    }
   },
 };
