@@ -153,6 +153,7 @@ describe('fetch handler — region probe from request cf.colo', () => {
     await saveSnapshot(env.DB, snap);
     await writeSnapshotIfChanged(env.KALSHI_KV, snap);
 
+    const tBefore = Date.now();
     const req = new Request('https://example.com/api/status?env=prod');
     Object.defineProperty(req, 'cf', { value: { colo: 'IAD' }, configurable: true });
     const ctx = createExecutionContext();
@@ -168,5 +169,6 @@ describe('fetch handler — region probe from request cf.colo', () => {
     const probe = JSON.parse(row!.payload);
     expect(probe.endpoints).toHaveLength(1);
     expect(probe.endpoints[0].name).toBe('ep1');
+    expect(probe.probed_at).toBeGreaterThanOrEqual(tBefore);
   });
 });
