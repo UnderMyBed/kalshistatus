@@ -9,6 +9,11 @@ interface RssItem {
   description: string;
 }
 
+function stripCdata(s: string): string {
+  const m = /^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/.exec(s);
+  return m ? m[1] : s;
+}
+
 function parseRss(xml: string): RssItem[] {
   const items: RssItem[] = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
@@ -17,17 +22,14 @@ function parseRss(xml: string): RssItem[] {
   while ((match = itemRegex.exec(xml)) !== null) {
     const block = match[1];
     const link = (/<link>(.*?)<\/link>/.exec(block) ?? [])[1]?.trim() ?? '';
-    const title = (/<title>(.*?)<\/title>/.exec(block) ?? [])[1]?.trim() ?? '';
+    const title = stripCdata((/<title>(.*?)<\/title>/.exec(block) ?? [])[1]?.trim() ?? '');
     const pubDate = (/<pubDate>(.*?)<\/pubDate>/.exec(block) ?? [])[1]?.trim() ?? '';
-    const description =
-      (/<description>([\s\S]*?)<\/description>/.exec(block) ?? [])[1]?.trim() ?? '';
+    const description = stripCdata(
+      (/<description>([\s\S]*?)<\/description>/.exec(block) ?? [])[1]?.trim() ?? '',
+    );
     if (!link) continue;
-    items.push({
-      link,
-      title,
-      pubDateTs: pubDate ? new Date(pubDate).getTime() : Date.now(),
-      description,
-    });
+    const ts = pubDate ? new Date(pubDate).getTime() : NaN;
+    items.push({ link, title, pubDateTs: Number.isFinite(ts) ? ts : 0, description });
   }
 
   return items;
@@ -61,7 +63,9 @@ export async function fetchAndSummarizeChangelog(
     const summary =
       typeof aiRes === 'object' && aiRes !== null && 'response' in aiRes
         ? String((aiRes as { response: unknown }).response)
-        : '';
+        : null;
+
+    if (!summary) continue;
 
     await env.DB.prepare(
       'INSERT INTO changelog_summaries (link, pub_date_ts, title, summary_ai, generated_at) VALUES (?, ?, ?, ?, ?)',
