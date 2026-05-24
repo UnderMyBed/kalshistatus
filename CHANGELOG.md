@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/UnderMyBed/kalshistatus/compare/v1.1.0...v1.2.0) (2026-05-24)
+
+
+### Features
+
+* uptime % in banner, 24h latency chart, extract CSS to /style.css ([#33](https://github.com/UnderMyBed/kalshistatus/issues/33)) ([468a29e](https://github.com/UnderMyBed/kalshistatus/commit/468a29e793b7e8afab3c5064dae3382af159f72f))
+
 ## [1.1.0](https://github.com/UnderMyBed/kalshistatus/compare/v1.0.0...v1.1.0) (2026-05-24)
 
 ### Features
