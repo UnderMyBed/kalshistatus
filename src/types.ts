@@ -84,8 +84,8 @@ export interface Env {
   VERSION: string;
   COMMIT_SHA: string;
   KALSHI_PROD_KEY_ID?: string;
-  KALSHI_PROD_PRIVATE_KEY?: string;
+  KALSHI_PROD_PRIVATE_KEY_PEM?: string;
   KALSHI_DEMO_KEY_ID?: string;
-  KALSHI_DEMO_PRIVATE_KEY?: string;
+  KALSHI_DEMO_PRIVATE_KEY_PEM?: string;
   GRAFANA_API_TOKEN?: string;
 }

@@ -22,7 +22,7 @@ async function probeEnvironment(
   const baseUrl = environment === 'prod' ? env.KALSHI_PROD_REST_BASE : env.KALSHI_DEMO_REST_BASE;
   const keyId = environment === 'prod' ? env.KALSHI_PROD_KEY_ID : env.KALSHI_DEMO_KEY_ID;
   const privateKey =
-    environment === 'prod' ? env.KALSHI_PROD_PRIVATE_KEY : env.KALSHI_DEMO_PRIVATE_KEY;
+    environment === 'prod' ? env.KALSHI_PROD_PRIVATE_KEY_PEM : env.KALSHI_DEMO_PRIVATE_KEY_PEM;
 
   const defs = getEndpointDefs(baseUrl);
   const outcomes: ProbeOutcome[] = await Promise.all(
