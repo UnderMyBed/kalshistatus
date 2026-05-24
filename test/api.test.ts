@@ -81,13 +81,13 @@ describe('GET /api/status', () => {
     expect(body.regions[0].region).toBe('us-east');
   });
 
-  it('excludes stale region probes older than 2 minutes', async () => {
+  it('excludes stale region probes older than 10 minutes', async () => {
     const snap = makeSnap();
     await saveSnapshot(env.DB, snap);
     await writeSnapshotIfChanged(env.KALSHI_KV, snap);
     const staleProbe: RegionProbe = {
       region: 'eu-west',
-      probed_at: Date.now() - 3 * 60 * 1000,
+      probed_at: Date.now() - 11 * 60 * 1000,
       endpoints: [],
     };
     await saveRegionProbe(env.DB, 'prod', staleProbe);

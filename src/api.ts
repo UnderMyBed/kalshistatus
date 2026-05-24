@@ -46,7 +46,7 @@ export async function handleApiStatus(request: Request, env: Env): Promise<Respo
     return Response.json({ error: 'no_data' }, { status: 404, headers: CORS });
   }
 
-  const sinceMs = Date.now() - 2 * 60 * 1000;
+  const sinceMs = Date.now() - 10 * 60 * 1000;
   const regions = await loadRecentRegionProbes(env.DB, environment, sinceMs);
 
   return Response.json(
