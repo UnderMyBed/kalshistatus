@@ -88,10 +88,9 @@ export async function handleGrafanaInit(
   const uid = created.uid;
 
   // Check for existing public dashboard first to keep the URL stable across re-runs
-  const getRes = await fetchFn(
-    `${GRAFANA_STACK_URL}/api/dashboards/uid/${uid}/public-dashboards`,
-    { headers },
-  );
+  const getRes = await fetchFn(`${GRAFANA_STACK_URL}/api/dashboards/uid/${uid}/public-dashboards`, {
+    headers,
+  });
   const existing = (await getRes.json()) as PublicDashboardResult;
 
   let accessToken: string;
@@ -111,7 +110,10 @@ export async function handleGrafanaInit(
     );
     const pub = (await pubRes.json()) as PublicDashboardResult;
     if (!pub.accessToken) {
-      return Response.json({ error: 'public dashboard creation failed', detail: pub }, { status: 500 });
+      return Response.json(
+        { error: 'public dashboard creation failed', detail: pub },
+        { status: 500 },
+      );
     }
     accessToken = pub.accessToken;
   }
