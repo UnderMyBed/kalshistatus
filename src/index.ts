@@ -12,6 +12,8 @@ const SECURITY_HEADERS: Record<string, string> = {
 
 const FRAME_DENY_PATHS = new Set(['/', '/architecture', '/api/status', '/api/history', '/healthz']);
 
+const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
+
 function withSecurityHeaders(res: Response, pathname: string): Response {
   const headers = new Headers(res.headers);
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
@@ -29,7 +31,8 @@ function withSecurityHeaders(res: Response, pathname: string): Response {
       "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors *",
     );
   }
-  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  const body = NULL_BODY_STATUSES.has(res.status) ? null : res.body;
+  return new Response(body, { status: res.status, statusText: res.statusText, headers });
 }
 
 export default {
