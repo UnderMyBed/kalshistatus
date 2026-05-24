@@ -39,7 +39,7 @@ async function signMessage(key: CryptoKey, message: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(message);
   const signature = await crypto.subtle.sign({ name: 'RSA-PSS', saltLength: 32 }, key, data);
-  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+  return btoa(new Uint8Array(signature).reduce((s, b) => s + String.fromCharCode(b), ''));
 }
 
 export async function probeEndpoint(
