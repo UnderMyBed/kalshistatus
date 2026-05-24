@@ -4,6 +4,7 @@ import { determineStatus, extractExchangeStatus } from './status';
 import { saveSnapshot, pruneSnapshots } from './storage';
 import { writeSnapshotIfChanged } from './kv';
 import { fetchAndSummarizeChangelog } from './changelog';
+import { sampleWebSocket } from './ws-sampler';
 
 async function probeEnvironment(
   env: Env,
@@ -32,6 +33,10 @@ async function probeEnvironment(
   const exchange = await extractExchangeStatus(probeResults, exchangeUrl, fetchFn);
   const status = determineStatus(probeResults);
 
+  const wsBase = environment === 'prod' ? env.KALSHI_PROD_WS_BASE : env.KALSHI_DEMO_WS_BASE;
+  const sampleMs = Math.max(500, parseInt(env.WS_SAMPLE_MS, 10) || 5000);
+  const ws_sample = await sampleWebSocket(wsBase, sampleMs);
+
   return {
     ts: Date.now(),
     environment,
@@ -39,6 +44,7 @@ async function probeEnvironment(
     exchange,
     endpoints: probeResults,
     regions: [],
+    ws_sample,
   };
 }
 
