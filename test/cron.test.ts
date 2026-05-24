@@ -2,17 +2,27 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
 import { runFastCron, runSlowCron } from '../src/cron';
 
-function makeMockFetch(status = 200) {
-  return vi
-    .fn()
-    .mockResolvedValue(
+const TRACE_IAD = 'fl=1\ncolo=IAD\n';
+const TRACE_LHR = 'fl=1\ncolo=LHR\n';
+const TRACE_UNKNOWN = 'fl=1\ncolo=SFO\n';
+
+function makeMockFetch(status = 200, traceBody = TRACE_UNKNOWN) {
+  return vi.fn().mockImplementation((url: string) => {
+    if (typeof url === 'string' && url.includes('cdn-cgi/trace')) {
+      return Promise.resolve(new Response(traceBody));
+    }
+    return Promise.resolve(
       new Response(JSON.stringify({ exchange_active: true, trading_active: true }), { status }),
     );
+  });
 }
 
 async function applySchema() {
   await env.DB.exec(
     `CREATE TABLE IF NOT EXISTS snapshots (ts INTEGER NOT NULL, environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), payload TEXT NOT NULL, PRIMARY KEY (environment, ts))`,
+  );
+  await env.DB.exec(
+    `CREATE TABLE IF NOT EXISTS region_probes (environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), region TEXT NOT NULL CHECK (region IN ('us-east', 'eu-west', 'asia')), probed_at INTEGER NOT NULL, payload TEXT NOT NULL, PRIMARY KEY (environment, region))`,
   );
 }
 
@@ -20,6 +30,7 @@ describe('runFastCron', () => {
   beforeEach(async () => {
     await applySchema();
     await env.DB.prepare('DELETE FROM snapshots').run();
+    await env.DB.prepare('DELETE FROM region_probes').run();
   });
 
   it('probes all 8 endpoints and writes a prod snapshot to D1', async () => {
@@ -59,6 +70,39 @@ describe('runFastCron', () => {
       .first<{ payload: string }>();
     const snap = JSON.parse(row!.payload);
     expect(snap.status).toBe('major_outage');
+  });
+
+  it('saves a region probe when region is detected', async () => {
+    const mockFetch = makeMockFetch(200, TRACE_IAD);
+    await runFastCron(env, mockFetch);
+    const row = await env.DB.prepare(
+      'SELECT payload FROM region_probes WHERE environment = ? AND region = ?',
+    )
+      .bind('prod', 'us-east')
+      .first<{ payload: string }>();
+    expect(row).not.toBeNull();
+    const probe = JSON.parse(row!.payload);
+    expect(probe.region).toBe('us-east');
+    expect(probe.endpoints).toHaveLength(8);
+  });
+
+  it('saves region probe for eu-west when colo is LHR', async () => {
+    const mockFetch = makeMockFetch(200, TRACE_LHR);
+    await runFastCron(env, mockFetch);
+    const row = await env.DB.prepare(
+      'SELECT payload FROM region_probes WHERE environment = ? AND region = ?',
+    )
+      .bind('prod', 'eu-west')
+      .first<{ payload: string }>();
+    expect(row).not.toBeNull();
+  });
+
+  it('does not save a region probe when colo is unknown', async () => {
+    const mockFetch = makeMockFetch(200, TRACE_UNKNOWN);
+    await runFastCron(env, mockFetch);
+    const row = await env.DB.prepare('SELECT COUNT(*) as cnt FROM region_probes')
+      .first<{ cnt: number }>();
+    expect(row!.cnt).toBe(0);
   });
 });
 

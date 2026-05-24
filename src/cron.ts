@@ -1,11 +1,12 @@
 import type { Env, Snapshot } from './types';
 import { getEndpointDefs, buildAuthHeaders, probeEndpoint } from './kalshi-client';
 import { determineStatus, extractExchangeStatus } from './status';
-import { saveSnapshot, pruneSnapshots } from './storage';
+import { saveSnapshot, pruneSnapshots, saveRegionProbe } from './storage';
 import { writeSnapshotIfChanged } from './kv';
 import { fetchAndSummarizeChangelog } from './changelog';
 import { sampleWebSocket } from './ws-sampler';
 import { pushMetrics } from './grafana';
+import { detectRegion } from './regions';
 
 async function probeEnvironment(
   env: Env,
@@ -50,16 +51,30 @@ async function probeEnvironment(
 }
 
 export async function runFastCron(env: Env, fetchFn: typeof fetch = fetch): Promise<void> {
-  const [prodSnap, demoSnap] = await Promise.all([
+  const [prodSnap, demoSnap, region] = await Promise.all([
     probeEnvironment(env, 'prod', fetchFn),
     probeEnvironment(env, 'demo', fetchFn),
+    detectRegion(fetchFn),
   ]);
-  await Promise.all([
+
+  const isCanonical = region === null || region === 'us-east';
+  const saves: Promise<void>[] = [
     saveSnapshot(env.DB, prodSnap),
     saveSnapshot(env.DB, demoSnap),
-    writeSnapshotIfChanged(env.KALSHI_KV, prodSnap),
-    writeSnapshotIfChanged(env.KALSHI_KV, demoSnap),
-  ]);
+  ];
+  if (isCanonical) {
+    saves.push(writeSnapshotIfChanged(env.KALSHI_KV, prodSnap));
+    saves.push(writeSnapshotIfChanged(env.KALSHI_KV, demoSnap));
+  }
+  if (region !== null) {
+    saves.push(
+      saveRegionProbe(env.DB, 'prod', { region, probed_at: prodSnap.ts, endpoints: prodSnap.endpoints }),
+    );
+    saves.push(
+      saveRegionProbe(env.DB, 'demo', { region, probed_at: demoSnap.ts, endpoints: demoSnap.endpoints }),
+    );
+  }
+  await Promise.all(saves);
 
   if (env.GRAFANA_PROM_URL && env.GRAFANA_INSTANCE_ID && env.GRAFANA_API_TOKEN) {
     await Promise.all([
