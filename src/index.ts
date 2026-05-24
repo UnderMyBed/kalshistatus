@@ -32,7 +32,7 @@ export default {
       );
     }
     if (pathname === '/api/status') {
-      const colo = request.cf?.colo;
+      const colo = request.cf?.colo as string | undefined;
       if (colo) {
         const region = coloToRegion(colo);
         if (region) {
