@@ -33,7 +33,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 3ec5942b7fcb9720c6888a6422d0f8cc
       - name: Sync Grafana dashboard
-        if: ${{ secrets.GRAFANA_API_TOKEN != '' }}
         continue-on-error: true
         run: node scripts/grafana-setup.mjs
         env:
