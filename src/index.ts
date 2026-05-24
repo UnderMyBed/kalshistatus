@@ -1,12 +1,15 @@
-import type { Env } from './types';
+import type { Env, Environment } from './types';
 import { runFastCron, runSlowCron } from './cron';
 import { handleApiStatus, handleApiHistory, handleBadge } from './api';
 import { CostController } from './cost-control';
 import { handleGrafanaInit } from './grafana-init';
+import { coloToRegion } from './regions';
+import { saveRegionProbePresence } from './storage';
 
 export default {
-  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
-    const { pathname } = new URL(request.url);
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    const { pathname } = url;
 
     if (request.method === 'OPTIONS') {
       return new Response(null, {
@@ -28,7 +31,20 @@ export default {
         { status: 503, headers: { 'Retry-After': '3600' } },
       );
     }
-    if (pathname === '/api/status') return handleApiStatus(request, env);
+    if (pathname === '/api/status') {
+      const colo = request.cf?.colo;
+      if (colo) {
+        const region = coloToRegion(colo);
+        if (region) {
+          const environment: Environment =
+            url.searchParams.get('env') === 'demo' ? 'demo' : 'prod';
+          ctx.waitUntil(
+            saveRegionProbePresence(env.DB, environment, { region, probed_at: Date.now(), endpoints: [] }),
+          );
+        }
+      }
+      return handleApiStatus(request, env);
+    }
     if (pathname === '/api/history') return handleApiHistory(request, env);
     if (pathname === '/badge.svg') return handleBadge(request, env);
 

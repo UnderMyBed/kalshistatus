@@ -5,6 +5,7 @@ import {
   loadLatestSnapshot,
   pruneSnapshots,
   saveRegionProbe,
+  saveRegionProbePresence,
   loadRecentRegionProbes,
 } from '../src/storage';
 import type { Snapshot, RegionProbe } from '../src/types';
@@ -131,5 +132,53 @@ describe('saveRegionProbe / loadRecentRegionProbes', () => {
   it('returns empty array when no probes match', async () => {
     const probes = await loadRecentRegionProbes(env.DB, 'prod', Date.now());
     expect(probes).toHaveLength(0);
+  });
+});
+
+describe('saveRegionProbePresence', () => {
+  it('inserts a new probe when no row exists', async () => {
+    const probe = { region: 'us-east' as const, probed_at: 1000, endpoints: [] };
+    await saveRegionProbePresence(env.DB, 'prod', probe);
+    const probes = await loadRecentRegionProbes(env.DB, 'prod', 0);
+    expect(probes).toHaveLength(1);
+    expect(probes[0].region).toBe('us-east');
+    expect(probes[0].probed_at).toBe(1000);
+  });
+
+  it('replaces payload when existing row has no endpoints', async () => {
+    const first = { region: 'us-east' as const, probed_at: 1000, endpoints: [] };
+    await saveRegionProbePresence(env.DB, 'prod', first);
+    const second = { region: 'us-east' as const, probed_at: 2000, endpoints: [] };
+    await saveRegionProbePresence(env.DB, 'prod', second);
+    const probes = await loadRecentRegionProbes(env.DB, 'prod', 0);
+    expect(probes).toHaveLength(1);
+    expect(probes[0].probed_at).toBe(2000);
+  });
+
+  it('preserves existing endpoint data when cron probe has endpoints', async () => {
+    const ep = { name: 'ep1', url: 'https://example.com', method: 'GET', latency_ms: 50, status: 'up', http_status: 200 };
+    const cronProbe = { region: 'us-east' as const, probed_at: 1000, endpoints: [ep] };
+    await saveRegionProbe(env.DB, 'prod', cronProbe);
+
+    const presence = { region: 'us-east' as const, probed_at: 2000, endpoints: [] };
+    await saveRegionProbePresence(env.DB, 'prod', presence);
+
+    const probes = await loadRecentRegionProbes(env.DB, 'prod', 0);
+    expect(probes).toHaveLength(1);
+    expect(probes[0].endpoints).toHaveLength(1);
+    expect(probes[0].endpoints[0].name).toBe('ep1');
+  });
+
+  it('updates probed_at even when preserving endpoint data', async () => {
+    const ep = { name: 'ep1', url: 'https://example.com', method: 'GET', latency_ms: 50, status: 'up', http_status: 200 };
+    const cronProbe = { region: 'eu-west' as const, probed_at: 1000, endpoints: [ep] };
+    await saveRegionProbe(env.DB, 'prod', cronProbe);
+
+    const presence = { region: 'eu-west' as const, probed_at: 9999, endpoints: [] };
+    await saveRegionProbePresence(env.DB, 'prod', presence);
+
+    const probes = await loadRecentRegionProbes(env.DB, 'prod', 9998);
+    expect(probes).toHaveLength(1);
+    expect(probes[0].probed_at).toBe(9999);
   });
 });
