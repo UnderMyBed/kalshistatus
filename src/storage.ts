@@ -19,6 +19,18 @@ export async function loadLatestSnapshot(
   return JSON.parse(row.payload) as Snapshot;
 }
 
+export async function readSnapshotHistory(
+  db: D1Database,
+  environment: Environment,
+  limit: number,
+): Promise<Snapshot[]> {
+  const rows = await db
+    .prepare('SELECT payload FROM snapshots WHERE environment = ? ORDER BY ts DESC LIMIT ?')
+    .bind(environment, limit)
+    .all<{ payload: string }>();
+  return rows.results.map((r) => JSON.parse(r.payload) as Snapshot);
+}
+
 export async function pruneSnapshots(
   db: D1Database,
   nowMs: number,
