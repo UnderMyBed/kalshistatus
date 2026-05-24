@@ -69,6 +69,26 @@ export async function saveRegionProbe(
     .run();
 }
 
+export async function saveRegionProbePresence(
+  db: D1Database,
+  environment: Environment,
+  probe: RegionProbe,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO region_probes (environment, region, probed_at, payload) VALUES (?, ?, ?, ?)
+       ON CONFLICT(environment, region) DO UPDATE SET
+         probed_at = excluded.probed_at,
+         payload = CASE
+           WHEN json_array_length(json_extract(region_probes.payload, '$.endpoints')) > 0
+           THEN json_set(region_probes.payload, '$.probed_at', excluded.probed_at)
+           ELSE excluded.payload
+         END`,
+    )
+    .bind(environment, probe.region, probe.probed_at, JSON.stringify(probe))
+    .run();
+}
+
 export async function loadRecentRegionProbes(
   db: D1Database,
   environment: Environment,
