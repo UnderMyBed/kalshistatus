@@ -4,6 +4,7 @@ interface EndpointDef {
   name: string;
   url: string;
   method: string;
+  requires_auth: boolean;
 }
 
 export async function buildAuthHeaders(
@@ -63,6 +64,7 @@ export async function probeEndpoint(
       latency_ms,
       status,
       http_status: res.status,
+      requires_auth: def.requires_auth,
     };
   } catch (err) {
     return {
@@ -72,6 +74,7 @@ export async function probeEndpoint(
       latency_ms: null,
       status: 'down',
       http_status: null,
+      requires_auth: def.requires_auth,
       error: err instanceof Error ? err.message : String(err),
     };
   }
@@ -79,17 +82,43 @@ export async function probeEndpoint(
 
 export function getEndpointDefs(baseUrl: string): EndpointDef[] {
   return [
-    { name: 'exchange_status', url: `${baseUrl}/exchange/status`, method: 'GET' },
-    { name: 'markets_list', url: `${baseUrl}/markets?limit=1`, method: 'GET' },
-    { name: 'events_list', url: `${baseUrl}/events?limit=1`, method: 'GET' },
-    { name: 'series_list', url: `${baseUrl}/series?limit=1`, method: 'GET' },
-    { name: 'portfolio_balance', url: `${baseUrl}/portfolio/balance`, method: 'GET' },
-    { name: 'portfolio_positions', url: `${baseUrl}/portfolio/positions?limit=1`, method: 'GET' },
+    {
+      name: 'exchange_status',
+      url: `${baseUrl}/exchange/status`,
+      method: 'GET',
+      requires_auth: false,
+    },
+    {
+      name: 'markets_list',
+      url: `${baseUrl}/markets?limit=1`,
+      method: 'GET',
+      requires_auth: false,
+    },
+    { name: 'events_list', url: `${baseUrl}/events?limit=1`, method: 'GET', requires_auth: false },
+    { name: 'series_list', url: `${baseUrl}/series?limit=1`, method: 'GET', requires_auth: false },
+    {
+      name: 'portfolio_balance',
+      url: `${baseUrl}/portfolio/balance`,
+      method: 'GET',
+      requires_auth: true,
+    },
+    {
+      name: 'portfolio_positions',
+      url: `${baseUrl}/portfolio/positions?limit=1`,
+      method: 'GET',
+      requires_auth: true,
+    },
     {
       name: 'portfolio_orders',
       url: `${baseUrl}/portfolio/orders?status=resting&limit=1`,
       method: 'GET',
+      requires_auth: true,
     },
-    { name: 'portfolio_fills', url: `${baseUrl}/portfolio/fills?limit=1`, method: 'GET' },
+    {
+      name: 'portfolio_fills',
+      url: `${baseUrl}/portfolio/fills?limit=1`,
+      method: 'GET',
+      requires_auth: true,
+    },
   ];
 }

@@ -2,6 +2,7 @@
   "name": "kalshistatus",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
@@ -12,11 +13,11 @@
     "fmt:check": "prettier --check ."
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.8.0",
-    "@cloudflare/workers-types": "^4.20250501.0",
+    "@cloudflare/vitest-pool-workers": "^0.16.9",
+    "@cloudflare/workers-types": "^4.20251101.0",
     "prettier": "^3.3.3",
     "typescript": "^5.5.3",
-    "vitest": "^3.0.0",
-    "wrangler": "^3.63.0"
+    "vitest": "^4.1.0",
+    "wrangler": "^4.20.0"
   }
 }

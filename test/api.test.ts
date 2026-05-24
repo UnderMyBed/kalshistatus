@@ -31,6 +31,8 @@ beforeEach(async () => {
   await env.DB.exec(REGION_SCHEMA);
   await env.DB.prepare('DELETE FROM snapshots').run();
   await env.DB.prepare('DELETE FROM region_probes').run();
+  const list = await env.KALSHI_KV.list();
+  for (const k of list.keys) await env.KALSHI_KV.delete(k.name);
 });
 
 describe('GET /api/status', () => {

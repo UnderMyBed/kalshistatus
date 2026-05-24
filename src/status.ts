@@ -1,13 +1,14 @@
 import type { EndpointProbe, ExchangeStatus, OverallStatus } from './types';
 
 export function determineStatus(probes: EndpointProbe[]): OverallStatus {
-  if (probes.length === 0) return 'unknown';
+  const publicProbes = probes.filter((p) => !p.requires_auth);
+  if (publicProbes.length === 0) return 'unknown';
 
-  const exchangeProbe = probes.find((p) => p.name === 'exchange_status');
+  const exchangeProbe = publicProbes.find((p) => p.name === 'exchange_status');
   if (exchangeProbe && exchangeProbe.status !== 'up') return 'major_outage';
 
-  const nonOpCount = probes.filter((p) => p.status !== 'up').length;
-  const ratio = nonOpCount / probes.length;
+  const nonOpCount = publicProbes.filter((p) => p.status !== 'up').length;
+  const ratio = nonOpCount / publicProbes.length;
 
   if (ratio === 1) return 'major_outage';
   if (ratio > 0.5) return 'partial_outage';

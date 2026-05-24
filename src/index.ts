@@ -1,10 +1,36 @@
 import type { Env } from './types';
 import { runFastCron, runSlowCron } from './cron';
-import { handleApiStatus, handleApiHistory, handleBadge, parseEnvironment } from './api';
+import { handleApiStatus, handleApiHistory, handleBadge } from './api';
 import { CostController } from './cost-control';
-import { handleGrafanaInit } from './grafana-init';
-import { coloToRegion } from './regions';
-import { saveRegionProbePresence } from './storage';
+
+const SECURITY_HEADERS: Record<string, string> = {
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'accelerometer=(), camera=(), geolocation=(), microphone=()',
+};
+
+const FRAME_DENY_PATHS = new Set(['/', '/architecture', '/api/status', '/api/history', '/healthz']);
+
+function withSecurityHeaders(res: Response, pathname: string): Response {
+  const headers = new Headers(res.headers);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+    headers.set(k, v);
+  }
+  if (FRAME_DENY_PATHS.has(pathname)) {
+    headers.set('X-Frame-Options', 'DENY');
+    headers.set(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'",
+    );
+  } else if (pathname === '/embed') {
+    headers.set(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors *",
+    );
+  }
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -12,46 +38,55 @@ export default {
     const { pathname } = url;
 
     if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        },
-      });
+      return withSecurityHeaders(
+        new Response(null, {
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Max-Age': '86400',
+          },
+        }),
+        pathname,
+      );
     }
 
-    if (pathname === '/healthz') return Response.json({ ok: true, ts: Date.now() });
-    if (pathname === '/api/grafana-init') return handleGrafanaInit(request, env.GRAFANA_API_TOKEN);
+    if (pathname === '/healthz') {
+      return withSecurityHeaders(Response.json({ ok: true, ts: Date.now() }), pathname);
+    }
 
     const { allow } = await new CostController(env.KALSHI_KV).check();
     if (!allow) {
-      return Response.json(
-        { error: 'budget_exceeded', retry_after: 3600 },
-        { status: 503, headers: { 'Retry-After': '3600' } },
+      return withSecurityHeaders(
+        Response.json(
+          { error: 'budget_exceeded', retry_after: 3600 },
+          { status: 503, headers: { 'Retry-After': '3600' } },
+        ),
+        pathname,
       );
     }
-    if (pathname === '/api/status') {
-      const colo = request.cf?.colo as string | undefined;
-      if (colo) {
-        const region = coloToRegion(colo);
-        if (region) {
-          const environment = parseEnvironment(url);
-          ctx.waitUntil(
-            saveRegionProbePresence(env.DB, environment, {
-              region,
-              probed_at: Date.now(),
-              endpoints: [],
-            }),
-          );
-        }
-      }
-      return handleApiStatus(request, env);
-    }
-    if (pathname === '/api/history') return handleApiHistory(request, env);
-    if (pathname === '/badge.svg') return handleBadge(request, env);
 
-    return env.ASSETS.fetch(request);
+    let response: Response;
+    if (pathname === '/api/status') {
+      response = await handleApiStatus(request, env);
+    } else if (pathname === '/api/history') {
+      response = await handleApiHistory(request, env);
+    } else if (pathname === '/badge.svg') {
+      response = await handleBadge(request, env);
+    } else {
+      response = await env.ASSETS.fetch(request);
+    }
+
+    if (request.method === 'HEAD' && response.body) {
+      response = new Response(null, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    }
+
+    ctx; // unused but keep for future cron-on-fetch patterns
+    return withSecurityHeaders(response, pathname);
   },
 
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {

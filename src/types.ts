@@ -14,6 +14,7 @@ export interface EndpointProbe {
   latency_ms: number | null;
   status: EndpointStatus;
   http_status: number | null;
+  requires_auth: boolean;
   error?: string;
 }
 
