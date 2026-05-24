@@ -2,6 +2,7 @@ import type { Env } from './types';
 import { runFastCron, runSlowCron } from './cron';
 import { handleApiStatus, handleApiHistory, handleBadge } from './api';
 import { CostController } from './cost-control';
+import { handleGrafanaInit } from './grafana-init';
 
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -27,6 +28,7 @@ export default {
       );
     }
 
+    if (pathname === '/api/grafana-init') return handleGrafanaInit(request, env.GRAFANA_API_TOKEN);
     if (pathname === '/api/status') return handleApiStatus(request, env);
     if (pathname === '/api/history') return handleApiHistory(request, env);
     if (pathname === '/badge.svg') return handleBadge(request, env);

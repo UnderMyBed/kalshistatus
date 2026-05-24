@@ -64,5 +64,5 @@ export interface Env {
   KALSHI_PROD_PRIVATE_KEY?: string;
   KALSHI_DEMO_KEY_ID?: string;
   KALSHI_DEMO_PRIVATE_KEY?: string;
-  GRAFANA_PROM_TOKEN?: string;
+  GRAFANA_API_TOKEN?: string;
 }

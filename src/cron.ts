@@ -61,10 +61,10 @@ export async function runFastCron(env: Env, fetchFn: typeof fetch = fetch): Prom
     writeSnapshotIfChanged(env.KALSHI_KV, demoSnap),
   ]);
 
-  if (env.GRAFANA_PROM_URL && env.GRAFANA_INSTANCE_ID && env.GRAFANA_PROM_TOKEN) {
+  if (env.GRAFANA_PROM_URL && env.GRAFANA_INSTANCE_ID && env.GRAFANA_API_TOKEN) {
     await Promise.all([
-      pushMetrics(prodSnap, env.GRAFANA_PROM_URL, env.GRAFANA_INSTANCE_ID, env.GRAFANA_PROM_TOKEN),
-      pushMetrics(demoSnap, env.GRAFANA_PROM_URL, env.GRAFANA_INSTANCE_ID, env.GRAFANA_PROM_TOKEN),
+      pushMetrics(prodSnap, env.GRAFANA_PROM_URL, env.GRAFANA_INSTANCE_ID, env.GRAFANA_API_TOKEN),
+      pushMetrics(demoSnap, env.GRAFANA_PROM_URL, env.GRAFANA_INSTANCE_ID, env.GRAFANA_API_TOKEN),
     ]);
   }
 }
