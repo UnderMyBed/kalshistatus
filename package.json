@@ -1,0 +1,22 @@
+{
+  "name": "kalshistatus",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "fmt": "prettier --write .",
+    "fmt:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.8.0",
+    "@cloudflare/workers-types": "^4.20250501.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.3",
+    "vitest": "^3.0.0",
+    "wrangler": "^3.63.0"
+  }
+}
