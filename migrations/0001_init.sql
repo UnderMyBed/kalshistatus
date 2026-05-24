@@ -5,4 +5,3 @@ CREATE TABLE IF NOT EXISTS snapshots (
   PRIMARY KEY (environment, ts)
 );
 
-CREATE INDEX IF NOT EXISTS idx_snapshots_env_ts ON snapshots(environment, ts DESC);
