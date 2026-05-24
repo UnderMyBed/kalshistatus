@@ -141,7 +141,14 @@ describe('fetch handler — region probe from request cf.colo', () => {
   });
 
   it('preserves cron endpoint data when fetch-handler probe arrives for same region', async () => {
-    const ep = { name: 'ep1', url: 'https://example.com', method: 'GET', latency_ms: 50, status: 'up', http_status: 200 };
+    const ep = {
+      name: 'ep1',
+      url: 'https://example.com',
+      method: 'GET',
+      latency_ms: 50,
+      status: 'up',
+      http_status: 200,
+    };
     const cronProbe = { region: 'us-east' as const, probed_at: 1000, endpoints: [ep] };
     await env.DB.prepare(
       'INSERT INTO region_probes (environment, region, probed_at, payload) VALUES (?, ?, ?, ?)',

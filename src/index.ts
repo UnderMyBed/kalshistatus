@@ -36,10 +36,13 @@ export default {
       if (colo) {
         const region = coloToRegion(colo);
         if (region) {
-          const environment: Environment =
-            url.searchParams.get('env') === 'demo' ? 'demo' : 'prod';
+          const environment: Environment = url.searchParams.get('env') === 'demo' ? 'demo' : 'prod';
           ctx.waitUntil(
-            saveRegionProbePresence(env.DB, environment, { region, probed_at: Date.now(), endpoints: [] }),
+            saveRegionProbePresence(env.DB, environment, {
+              region,
+              probed_at: Date.now(),
+              endpoints: [],
+            }),
           );
         }
       }

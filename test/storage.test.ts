@@ -156,7 +156,14 @@ describe('saveRegionProbePresence', () => {
   });
 
   it('preserves existing endpoint data when cron probe has endpoints', async () => {
-    const ep = { name: 'ep1', url: 'https://example.com', method: 'GET', latency_ms: 50, status: 'up', http_status: 200 };
+    const ep = {
+      name: 'ep1',
+      url: 'https://example.com',
+      method: 'GET',
+      latency_ms: 50,
+      status: 'up',
+      http_status: 200,
+    };
     const cronProbe = { region: 'us-east' as const, probed_at: 1000, endpoints: [ep] };
     await saveRegionProbe(env.DB, 'prod', cronProbe);
 
@@ -170,7 +177,14 @@ describe('saveRegionProbePresence', () => {
   });
 
   it('updates probed_at even when preserving endpoint data', async () => {
-    const ep = { name: 'ep1', url: 'https://example.com', method: 'GET', latency_ms: 50, status: 'up', http_status: 200 };
+    const ep = {
+      name: 'ep1',
+      url: 'https://example.com',
+      method: 'GET',
+      latency_ms: 50,
+      status: 'up',
+      http_status: 200,
+    };
     const cronProbe = { region: 'eu-west' as const, probed_at: 1000, endpoints: [ep] };
     await saveRegionProbe(env.DB, 'prod', cronProbe);
 
