@@ -81,14 +81,14 @@ All responses pass through `withSecurityHeaders()`:
 
 ## Secrets
 
-| Name                      | Purpose                                      |
-| ------------------------- | -------------------------------------------- |
-| `KALSHI_PROD_KEY_ID`      | Kalshi prod API key ID                       |
-| `KALSHI_PROD_PRIVATE_KEY` | Kalshi prod RSA private key (PKCS#8 PEM)     |
-| `KALSHI_DEMO_KEY_ID`      | Kalshi demo API key ID                       |
-| `KALSHI_DEMO_PRIVATE_KEY` | Kalshi demo RSA private key                  |
-| `GRAFANA_API_TOKEN`       | Grafana Cloud service-account token (writer) |
-| `CLOUDFLARE_API_TOKEN`    | GitHub Actions deploy token (CI only)        |
+| Name                          | Purpose                                      |
+| ----------------------------- | -------------------------------------------- |
+| `KALSHI_PROD_KEY_ID`          | Kalshi prod API key ID                       |
+| `KALSHI_PROD_PRIVATE_KEY_PEM` | Kalshi prod RSA private key (PKCS#8 PEM)     |
+| `KALSHI_DEMO_KEY_ID`          | Kalshi demo API key ID                       |
+| `KALSHI_DEMO_PRIVATE_KEY_PEM` | Kalshi demo RSA private key                  |
+| `GRAFANA_API_TOKEN`           | Grafana Cloud service-account token (writer) |
+| `CLOUDFLARE_API_TOKEN`        | GitHub Actions deploy token (CI only)        |
 
 Secrets are pushed via `wrangler secret put` once. CI never sets secrets. If
 rotation is needed, do it interactively from a developer machine.

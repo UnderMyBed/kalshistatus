@@ -8,7 +8,7 @@ Kalshi authenticated endpoints require RSA-PSS SHA-256 request signing. The priv
 
 ## Decision
 
-Use Web Crypto API (`crypto.subtle.importKey` + `crypto.subtle.sign`) in the Worker. Key stored as PEM in `KALSHI_PROD_PRIVATE_KEY` / `KALSHI_DEMO_PRIVATE_KEY` secrets.
+Use Web Crypto API (`crypto.subtle.importKey` + `crypto.subtle.sign`) in the Worker. Key stored as PEM in `KALSHI_PROD_PRIVATE_KEY_PEM` / `KALSHI_DEMO_PRIVATE_KEY_PEM` secrets.
 
 ## Consequences
 
