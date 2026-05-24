@@ -40,7 +40,7 @@ WS_SAMPLE_MS             = "5000"
 SNAPSHOT_RETENTION_DAYS  = "90"
 GRAFANA_PROM_URL         = "https://prometheus-prod-67-prod-us-west-0.grafana.net/api/prom/push"
 GRAFANA_INSTANCE_ID      = "2964496"
-PUBLIC_DASHBOARD_URL     = ""
+PUBLIC_DASHBOARD_URL     = "https://shipman.grafana.net/public-dashboards/9a171d6056054dd2a239a45a7a6b108e"
 
 [observability]
 enabled             = true
