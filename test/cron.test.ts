@@ -22,7 +22,13 @@ async function applySchema() {
     `CREATE TABLE IF NOT EXISTS snapshots (ts INTEGER NOT NULL, environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), payload TEXT NOT NULL, PRIMARY KEY (environment, ts))`,
   );
   await env.DB.exec(
-    `CREATE TABLE IF NOT EXISTS region_probes (environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), region TEXT NOT NULL CHECK (region IN ('us-east', 'eu-west', 'asia')), probed_at INTEGER NOT NULL, payload TEXT NOT NULL, PRIMARY KEY (environment, region))`,
+    `CREATE TABLE IF NOT EXISTS region_probes (environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), region TEXT NOT NULL CHECK (region IN ('us-east', 'eu-west', 'asia')), probed_at INTEGER NOT NULL, payload TEXT NOT NULL, PRIMARY KEY (environment, region, probed_at))`,
+  );
+  await env.DB.exec(
+    `CREATE TABLE IF NOT EXISTS uptime_metrics (environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), window_hours INTEGER NOT NULL, computed_at INTEGER NOT NULL, ok_count INTEGER NOT NULL, total_count INTEGER NOT NULL, pct REAL NOT NULL, PRIMARY KEY (environment, window_hours))`,
+  );
+  await env.DB.exec(
+    `CREATE TABLE IF NOT EXISTS changelog_summaries (link TEXT PRIMARY KEY, pub_date_ts INTEGER NOT NULL, title TEXT NOT NULL, summary_ai TEXT NOT NULL, generated_at INTEGER NOT NULL)`,
   );
 }
 

@@ -37,6 +37,17 @@ export interface WsSample {
   error?: string;
 }
 
+export interface UptimeWindow {
+  pct: number;
+  ok_count: number;
+  total_count: number;
+}
+
+export interface UptimeMetrics {
+  computed_at: number;
+  windows: Record<string, UptimeWindow>;
+}
+
 export interface Snapshot {
   ts: number;
   environment: Environment;
@@ -45,6 +56,7 @@ export interface Snapshot {
   endpoints: EndpointProbe[];
   regions: RegionProbe[];
   ws_sample?: WsSample;
+  uptime?: UptimeMetrics;
 }
 
 export interface ChangelogEntry {

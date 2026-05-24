@@ -12,6 +12,7 @@ import { fetchAndSummarizeChangelog } from './changelog';
 import { sampleWebSocket } from './ws-sampler';
 import { pushMetrics } from './grafana';
 import { detectRegion } from './regions';
+import { computeAndStoreUptime } from './uptime';
 
 async function probeEnvironment(
   env: Env,
@@ -114,10 +115,12 @@ export async function runFastCron(env: Env, fetchFn: typeof fetch = fetch): Prom
 
 export async function runSlowCron(env: Env): Promise<void> {
   const retentionDays = parseInt(env.SNAPSHOT_RETENTION_DAYS, 10) || 90;
+  const now = Date.now();
   await Promise.all([
-    pruneSnapshots(env.DB, Date.now(), retentionDays),
-    pruneRegionProbes(env.DB, Date.now(), 7),
+    pruneSnapshots(env.DB, now, retentionDays),
+    pruneRegionProbes(env.DB, now, 7),
     fetchAndSummarizeChangelog(env),
+    computeAndStoreUptime(env.DB, now),
   ]);
 }
 
