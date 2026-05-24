@@ -31,23 +31,16 @@ async function probeEnvironment(
         return probeEndpoint(def, {}, fetchFn);
       }
       if (!keyId || !privateKey) {
-        return {
-          probe: {
-            name: def.name,
-            url: def.url,
-            method: def.method,
-            latency_ms: null,
-            status: 'unknown',
-            http_status: null,
-            requires_auth: true,
-            error: 'no_credentials',
-          },
-          body: null,
-        };
+        return authShortCircuit(def, 'unknown', 'no_credentials');
       }
-      const path = new URL(def.url).pathname + new URL(def.url).search;
-      const authHeaders = await buildAuthHeaders(def.method, path, keyId, privateKey);
-      return probeEndpoint(def, authHeaders, fetchFn);
+      try {
+        const path = new URL(def.url).pathname;
+        const authHeaders = await buildAuthHeaders(def.method, path, keyId, privateKey);
+        return probeEndpoint(def, authHeaders, fetchFn);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return authShortCircuit(def, 'down', `auth_build_failed: ${msg}`);
+      }
     }),
   );
 
@@ -122,6 +115,26 @@ export async function runSlowCron(env: Env): Promise<void> {
     fetchAndSummarizeChangelog(env),
     computeAndStoreUptime(env.DB, now),
   ]);
+}
+
+function authShortCircuit(
+  def: { name: string; url: string; method: string },
+  status: 'unknown' | 'down',
+  error: string,
+): ProbeOutcome {
+  return {
+    probe: {
+      name: def.name,
+      url: def.url,
+      method: def.method,
+      latency_ms: null,
+      status,
+      http_status: null,
+      requires_auth: true,
+      error,
+    },
+    body: null,
+  };
 }
 
 async function pruneRegionProbes(

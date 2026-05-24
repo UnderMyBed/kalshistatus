@@ -25,11 +25,16 @@ export async function buildAuthHeaders(
   };
 }
 
-async function importPrivateKey(pem: string): Promise<CryptoKey> {
-  const pemBody = pem
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
+export function normalizePemBody(pem: string): string {
+  return pem
+    .replace(/\\n/g, '\n')
+    .replace(/-----BEGIN [^-]+-----/g, '')
+    .replace(/-----END [^-]+-----/g, '')
     .replace(/\s/g, '');
+}
+
+async function importPrivateKey(pem: string): Promise<CryptoKey> {
+  const pemBody = normalizePemBody(pem);
   const der = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
   return crypto.subtle.importKey('pkcs8', der.buffer, { name: 'RSA-PSS', hash: 'SHA-256' }, false, [
     'sign',
