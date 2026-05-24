@@ -1,4 +1,4 @@
-import type { Env, Snapshot } from './types';
+import type { Env, Snapshot, EndpointProbe } from './types';
 import { getEndpointDefs, buildAuthHeaders, probeEndpoint } from './kalshi-client';
 import { determineStatus, extractExchangeStatus } from './status';
 import { saveSnapshot, pruneSnapshots, saveRegionProbe } from './storage';
@@ -19,15 +19,26 @@ async function probeEnvironment(
     environment === 'prod' ? env.KALSHI_PROD_PRIVATE_KEY : env.KALSHI_DEMO_PRIVATE_KEY;
 
   const defs = getEndpointDefs(baseUrl);
-  const probeResults = await Promise.all(
+  const probeResults: EndpointProbe[] = await Promise.all(
     defs.map(async (def) => {
-      try {
-        const path = new URL(def.url).pathname + new URL(def.url).search;
-        const authHeaders = await buildAuthHeaders(def.method, path, keyId, privateKey);
-        return probeEndpoint(def, authHeaders, fetchFn);
-      } catch {
+      if (!def.requires_auth) {
         return probeEndpoint(def, {}, fetchFn);
       }
+      if (!keyId || !privateKey) {
+        return {
+          name: def.name,
+          url: def.url,
+          method: def.method,
+          latency_ms: null,
+          status: 'unknown',
+          http_status: null,
+          requires_auth: true,
+          error: 'no_credentials',
+        };
+      }
+      const path = new URL(def.url).pathname + new URL(def.url).search;
+      const authHeaders = await buildAuthHeaders(def.method, path, keyId, privateKey);
+      return probeEndpoint(def, authHeaders, fetchFn);
     }),
   );
 
@@ -57,7 +68,7 @@ export async function runFastCron(env: Env, fetchFn: typeof fetch = fetch): Prom
     detectRegion(fetchFn),
   ]);
 
-  const isCanonical = region === null || region === 'us-east';
+  const isCanonical = region === 'us-east';
   const saves: Promise<unknown>[] = [
     saveSnapshot(env.DB, prodSnap),
     saveSnapshot(env.DB, demoSnap),

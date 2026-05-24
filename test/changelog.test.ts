@@ -21,6 +21,7 @@ beforeEach(async () => {
   await env.DB.exec(SCHEMA_SNAPSHOTS);
   await env.DB.exec(SCHEMA_CHANGELOG);
   await env.DB.prepare('DELETE FROM changelog_summaries').run();
+  vi.restoreAllMocks();
   vi.spyOn(env.AI, 'run').mockResolvedValue({ response: 'One-sentence AI summary.' } as never);
 });
 

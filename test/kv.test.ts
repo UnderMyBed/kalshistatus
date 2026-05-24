@@ -16,7 +16,8 @@ function makeSnapshot(ts: number, status: 'operational' | 'degraded' = 'operatio
 
 describe('writeSnapshotIfChanged / readLatestSnapshot', () => {
   beforeEach(async () => {
-    // KV is isolated per test via the pool-workers harness; no manual clear needed
+    const list = await env.KALSHI_KV.list();
+    for (const k of list.keys) await env.KALSHI_KV.delete(k.name);
   });
 
   it('writes the snapshot and returns true when KV is empty', async () => {
