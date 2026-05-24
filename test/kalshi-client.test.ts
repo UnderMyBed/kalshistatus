@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildAuthHeaders, probeEndpoint, getEndpointDefs } from '../src/kalshi-client';
+import {
+  buildAuthHeaders,
+  normalizePemBody,
+  probeEndpoint,
+  getEndpointDefs,
+} from '../src/kalshi-client';
 
 describe('getEndpointDefs', () => {
   it('returns 8 endpoint definitions', () => {
@@ -27,6 +32,35 @@ describe('getEndpointDefs', () => {
     const portfolio = defs.filter((d) => d.name.startsWith('portfolio_'));
     expect(portfolio.length).toBe(4);
     for (const d of portfolio) expect(d.requires_auth).toBe(true);
+  });
+});
+
+describe('normalizePemBody', () => {
+  const body = 'MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSk';
+
+  it('strips standard PKCS8 BEGIN/END headers and whitespace', () => {
+    const pem = `-----BEGIN PRIVATE KEY-----\n${body}\n-----END PRIVATE KEY-----\n`;
+    expect(normalizePemBody(pem)).toBe(body);
+  });
+
+  it('strips PKCS1 RSA PRIVATE KEY headers (different label)', () => {
+    const pem = `-----BEGIN RSA PRIVATE KEY-----\n${body}\n-----END RSA PRIVATE KEY-----`;
+    expect(normalizePemBody(pem)).toBe(body);
+  });
+
+  it('handles Windows CRLF line endings', () => {
+    const pem = `-----BEGIN PRIVATE KEY-----\r\n${body}\r\n-----END PRIVATE KEY-----\r\n`;
+    expect(normalizePemBody(pem)).toBe(body);
+  });
+
+  it('normalizes literal \\n escape sequences (e.g. when secret was set as a JSON-encoded string)', () => {
+    const pem = `-----BEGIN PRIVATE KEY-----\\n${body}\\n-----END PRIVATE KEY-----`;
+    expect(normalizePemBody(pem)).toBe(body);
+  });
+
+  it('handles leading/trailing whitespace and tabs', () => {
+    const pem = `  \t-----BEGIN PRIVATE KEY-----  ${body}  -----END PRIVATE KEY-----  \n`;
+    expect(normalizePemBody(pem)).toBe(body);
   });
 });
 
