@@ -48,3 +48,23 @@ Runtime circuit breaker in `src/cost-control.ts` is the main protection until ra
 ## Incidents
 
 See `incidents/` directory for post-mortems.
+
+## Acceptance tests
+
+```bash
+# Health check
+curl -sf https://kalshistatus.dev/healthz | jq '.ok'
+# true
+
+# Prod status — must have >= 8 endpoints, exchange object
+curl -sf "https://kalshistatus.dev/api/status?env=prod" | jq '{status, exchange_active: .exchange.exchange_active, endpoint_count: (.endpoints | length)}'
+
+# Demo status
+curl -sf "https://kalshistatus.dev/api/status?env=demo" | jq '.status'
+
+# Badge
+curl -sI https://kalshistatus.dev/badge.svg | grep content-type
+
+# History API
+curl -sf "https://kalshistatus.dev/api/history?limit=5" | jq 'length'
+```
