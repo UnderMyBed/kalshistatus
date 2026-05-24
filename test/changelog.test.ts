@@ -5,7 +5,9 @@ import { fetchAndSummarizeChangelog } from '../src/changelog';
 const SCHEMA_SNAPSHOTS = `CREATE TABLE IF NOT EXISTS snapshots (ts INTEGER NOT NULL, environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), payload TEXT NOT NULL, PRIMARY KEY (environment, ts))`;
 const SCHEMA_CHANGELOG = `CREATE TABLE IF NOT EXISTS changelog_summaries (link TEXT PRIMARY KEY, pub_date_ts INTEGER NOT NULL, title TEXT NOT NULL, summary_ai TEXT NOT NULL, generated_at INTEGER NOT NULL)`;
 
-function makeRssFeed(items: { link: string; title: string; pubDate: string; description: string }[]): string {
+function makeRssFeed(
+  items: { link: string; title: string; pubDate: string; description: string }[],
+): string {
   const itemsXml = items
     .map(
       (i) =>
@@ -41,7 +43,13 @@ describe('fetchAndSummarizeChangelog', () => {
 
     const row = await env.DB.prepare('SELECT * FROM changelog_summaries WHERE link = ?')
       .bind('https://kalshi.com/changelog/1')
-      .first<{ link: string; title: string; summary_ai: string; pub_date_ts: number; generated_at: number }>();
+      .first<{
+        link: string;
+        title: string;
+        summary_ai: string;
+        pub_date_ts: number;
+        generated_at: number;
+      }>();
 
     expect(row).not.toBeNull();
     expect(row!.title).toBe('New feature');

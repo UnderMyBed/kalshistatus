@@ -19,9 +19,15 @@ function parseRss(xml: string): RssItem[] {
     const link = (/<link>(.*?)<\/link>/.exec(block) ?? [])[1]?.trim() ?? '';
     const title = (/<title>(.*?)<\/title>/.exec(block) ?? [])[1]?.trim() ?? '';
     const pubDate = (/<pubDate>(.*?)<\/pubDate>/.exec(block) ?? [])[1]?.trim() ?? '';
-    const description = (/<description>([\s\S]*?)<\/description>/.exec(block) ?? [])[1]?.trim() ?? '';
+    const description =
+      (/<description>([\s\S]*?)<\/description>/.exec(block) ?? [])[1]?.trim() ?? '';
     if (!link) continue;
-    items.push({ link, title, pubDateTs: pubDate ? new Date(pubDate).getTime() : Date.now(), description });
+    items.push({
+      link,
+      title,
+      pubDateTs: pubDate ? new Date(pubDate).getTime() : Date.now(),
+      description,
+    });
   }
 
   return items;
