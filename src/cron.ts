@@ -5,6 +5,7 @@ import { saveSnapshot, pruneSnapshots } from './storage';
 import { writeSnapshotIfChanged } from './kv';
 import { fetchAndSummarizeChangelog } from './changelog';
 import { sampleWebSocket } from './ws-sampler';
+import { pushMetrics } from './grafana';
 
 async function probeEnvironment(
   env: Env,
@@ -59,6 +60,13 @@ export async function runFastCron(env: Env, fetchFn: typeof fetch = fetch): Prom
     writeSnapshotIfChanged(env.KALSHI_KV, prodSnap),
     writeSnapshotIfChanged(env.KALSHI_KV, demoSnap),
   ]);
+
+  if (env.GRAFANA_PROM_URL && env.GRAFANA_INSTANCE_ID && env.GRAFANA_PROM_TOKEN) {
+    await Promise.all([
+      pushMetrics(prodSnap, env.GRAFANA_PROM_URL, env.GRAFANA_INSTANCE_ID, env.GRAFANA_PROM_TOKEN),
+      pushMetrics(demoSnap, env.GRAFANA_PROM_URL, env.GRAFANA_INSTANCE_ID, env.GRAFANA_PROM_TOKEN),
+    ]);
+  }
 }
 
 export async function runSlowCron(env: Env): Promise<void> {
