@@ -121,15 +121,15 @@
   function pushSparkline(key, ms) {
     if (!sparkBuffers.has(key)) sparkBuffers.set(key, []);
     const buf = sparkBuffers.get(key);
-    buf.push(ms);
+    buf.push({ ms, ts: Date.now() });
     if (buf.length > SPARKLINE_SIZE) buf.shift();
   }
-  function renderSparklineHTML(buf) {
+  function renderSparklineHTML(buf, label) {
     const N = SPARKLINE_SIZE;
     const padded = Array(Math.max(0, N - buf.length))
       .fill(null)
       .concat(buf.slice(-N));
-    const valid = padded.filter((v) => v != null);
+    const valid = padded.filter((v) => v != null && v.ms != null).map((v) => v.ms);
     const maxVal = valid.length ? Math.max(...valid, 1) : 1;
     const colorMap = {
       fast: 'var(--status-operational)',
@@ -137,13 +137,33 @@
       vslow: 'var(--status-down)',
       none: 'var(--border)',
     };
-    return padded
-      .map((v) => {
-        const cls = latencyClass(v);
-        const h = v != null ? Math.max(2, Math.round((v / maxVal) * 20)) : 2;
-        return `<div class="sparkline-bar" style="height:${h}px;background:${colorMap[cls]}"></div>`;
+    const W = 80;
+    const H = 24;
+    const barW = (W - (N - 1)) / N;
+    const now = Date.now();
+    const bars = padded
+      .map((v, i) => {
+        const ms = v?.ms ?? null;
+        const ts = v?.ts ?? null;
+        const cls = latencyClass(ms);
+        const h = ms != null ? Math.max(2, Math.round((ms / maxVal) * (H - 2))) : 2;
+        const x = (i * (W - barW * N)) / Math.max(1, N - 1) + i * barW;
+        const y = H - h;
+        const fill = colorMap[cls];
+        const title =
+          ms == null
+            ? 'no sample yet'
+            : `${latencyText(ms)} · ${ts != null ? formatAge(now - ts) + ' ago' : '—'}`;
+        return `<rect x="${x.toFixed(1)}" y="${y}" width="${barW.toFixed(1)}" height="${h}" rx="1" fill="${fill}"><title>${escHtml(title)}</title></rect>`;
       })
       .join('');
+    const labelAttr = label
+      ? ` aria-label="${escHtml(`${label} — last ${valid.length} samples`)}"`
+      : '';
+    const meta = valid.length
+      ? `min ${Math.min(...valid)}ms · max ${Math.max(...valid)}ms`
+      : 'no samples yet';
+    return `<svg class="sparkline-svg" viewBox="0 0 ${W} ${H}" role="img"${labelAttr}><title>${escHtml(meta)}</title>${bars}</svg>`;
   }
 
   function renderStatus(snap) {
@@ -225,7 +245,7 @@
       return `<div class="endpoint-row">
         <span class="endpoint-name">${escHtml(ep.name)}</span>
         <span class="endpoint-path" title="${escHtml(ep.url)}">${escHtml(endpointPath(ep))}</span>
-        <div class="sparkline">${renderSparklineHTML(buf)}</div>
+        <div class="sparkline">${renderSparklineHTML(buf, `${ep.name} latency`)}</div>
         <span class="latency ${lCls}">${lText}</span>
         <span class="endpoint-status ${sCls}">${escHtml(ep.status ?? '?')}</span>
       </div>${noteHtml}`;

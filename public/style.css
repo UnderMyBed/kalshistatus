@@ -474,15 +474,26 @@ button:focus-visible {
 }
 .sparkline {
   display: flex;
-  align-items: flex-end;
-  gap: 1px;
+  align-items: stretch;
   height: 24px;
+  width: 80px;
 }
-.sparkline-bar {
-  flex: 1;
-  min-height: 2px;
-  border-radius: 1px;
-  transition: height 150ms ease-out;
+.sparkline-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.sparkline-svg rect {
+  cursor: help;
+  transition: opacity 150ms ease-out;
+}
+.sparkline-svg:hover rect {
+  opacity: 0.6;
+}
+.sparkline-svg rect:hover {
+  opacity: 1;
+  stroke: var(--fg);
+  stroke-width: 0.5;
 }
 .latency {
   font-family: var(--font-mono);
