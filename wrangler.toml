@@ -28,6 +28,14 @@ id      = "640e458beb9148b2937a833cd56e2d4b"
 [ai]
 binding = "AI"
 
+[[durable_objects.bindings]]
+name       = "COST_COUNTER"
+class_name = "CostCounter"
+
+[[migrations]]
+tag                = "v1"
+new_sqlite_classes = ["CostCounter"]
+
 [triggers]
 crons = ["* * * * *", "0 * * * *"]
 

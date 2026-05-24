@@ -61,11 +61,19 @@ console output surface there directly.
 
 ### Primary defense
 
-Runtime circuit breaker in `src/cost-control.ts` is the main protection until
-rate-limiting rules are configured. **Known limitation**: the breaker is
-per-isolate at the moment, which means it can underestimate request count
-under high concurrency. Migration to a Durable Object is tracked in a
-follow-up ADR.
+Runtime circuit breaker is the main protection until rate-limiting rules
+are configured. As of ADR-0012 it is a SQLite-backed Durable Object
+(`CostCounter`) — atomic and correct under concurrency, free-tier
+compatible. Soft threshold 80K req/day (`shed` mode, no behavior change
+yet — reserved for future degraded responses), hard threshold 95K req/day
+(`blocked` mode, returns 503 with `Retry-After: 3600`).
+
+To inspect the counter:
+
+```bash
+wrangler tail --name kalshi-status
+# look for cost-breaker entries; or via the dashboard → Durable Objects
+```
 
 ## Rotating a secret
 
