@@ -1,0 +1,39 @@
+name = "kalshi-status"
+main = "src/index.ts"
+compatibility_date = "2026-05-23"
+compatibility_flags = ["nodejs_compat_v2"]
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding   = "ASSETS"
+
+[[d1_databases]]
+binding       = "DB"
+database_name = "kalshi_status"
+database_id   = "2a00894b-dab5-4e03-b4b2-9a8cdd645ed1"
+
+[[kv_namespaces]]
+binding = "KALSHI_KV"
+id      = "640e458beb9148b2937a833cd56e2d4b"
+
+[ai]
+binding = "AI"
+
+[triggers]
+crons = ["* * * * *", "0 * * * *"]
+
+[vars]
+KALSHI_PROD_REST_BASE    = "https://api.elections.kalshi.com/trade-api/v2"
+KALSHI_PROD_WS_BASE      = "wss://api.elections.kalshi.com/trade-api/ws/v2"
+KALSHI_DEMO_REST_BASE    = "https://demo-api.kalshi.co/trade-api/v2"
+KALSHI_DEMO_WS_BASE      = "wss://demo-api.kalshi.co/trade-api/ws/v2"
+WS_SAMPLE_MS             = "5000"
+SNAPSHOT_RETENTION_DAYS  = "90"
+GRAFANA_PROM_URL         = "https://prometheus-prod-67-prod-us-west-0.grafana.net/api/prom/push"
+GRAFANA_INSTANCE_ID      = "2964496"
+PUBLIC_DASHBOARD_URL     = ""
+
+[observability]
+enabled             = true
+head_sampling_rate  = 1.0

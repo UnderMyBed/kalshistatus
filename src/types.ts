@@ -1,0 +1,68 @@
+export type Environment = 'prod' | 'demo';
+export type OverallStatus =
+  | 'operational'
+  | 'degraded'
+  | 'partial_outage'
+  | 'major_outage'
+  | 'unknown';
+export type EndpointStatus = 'up' | 'down' | 'degraded' | 'unknown';
+
+export interface EndpointProbe {
+  name: string;
+  url: string;
+  method: string;
+  latency_ms: number | null;
+  status: EndpointStatus;
+  http_status: number | null;
+  error?: string;
+}
+
+export interface RegionProbe {
+  region: 'us-east' | 'eu-west' | 'asia';
+  probed_at: number;
+  endpoints: EndpointProbe[];
+}
+
+export interface ExchangeStatus {
+  exchange_active: boolean;
+  trading_active: boolean;
+}
+
+export interface WsSample {
+  connected: boolean;
+  latency_ms: number | null;
+  tickers_received: number;
+  sampled_at: number;
+  error?: string;
+}
+
+export interface Snapshot {
+  ts: number;
+  environment: Environment;
+  status: OverallStatus;
+  exchange: ExchangeStatus;
+  endpoints: EndpointProbe[];
+  regions: RegionProbe[];
+  ws_sample?: WsSample;
+}
+
+export interface Env {
+  DB: D1Database;
+  KALSHI_KV: KVNamespace;
+  AI: Ai;
+  ASSETS: Fetcher;
+  KALSHI_PROD_REST_BASE: string;
+  KALSHI_PROD_WS_BASE: string;
+  KALSHI_DEMO_REST_BASE: string;
+  KALSHI_DEMO_WS_BASE: string;
+  WS_SAMPLE_MS: string;
+  SNAPSHOT_RETENTION_DAYS: string;
+  GRAFANA_PROM_URL: string;
+  GRAFANA_INSTANCE_ID: string;
+  PUBLIC_DASHBOARD_URL: string;
+  KALSHI_PROD_KEY_ID?: string;
+  KALSHI_PROD_PRIVATE_KEY?: string;
+  KALSHI_DEMO_KEY_ID?: string;
+  KALSHI_DEMO_PRIVATE_KEY?: string;
+  GRAFANA_PROM_TOKEN?: string;
+}
