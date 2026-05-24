@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { determineStatus, extractExchangeStatus } from '../src/status';
 import type { EndpointProbe } from '../src/types';
 
-function probe(name: string, status: 'up' | 'down', http_status = 200): EndpointProbe {
+function probe(
+  name: string,
+  status: 'up' | 'down' | 'degraded' | 'unknown',
+  http_status = 200,
+): EndpointProbe {
   return {
     name,
     url: `https://example.com/${name}`,
@@ -68,6 +72,31 @@ describe('determineStatus', () => {
     ];
     expect(determineStatus(probes)).toBe('major_outage');
   });
+
+  it('treats exchange_status degraded as major_outage', () => {
+    const probes = [
+      probe('exchange_status', 'degraded'),
+      ...Array.from({ length: 7 }, (_, i) => probe(`ep${i}`, 'up')),
+    ];
+    expect(determineStatus(probes)).toBe('major_outage');
+  });
+
+  it('counts degraded probes toward non-operational ratio', () => {
+    const probes = [
+      probe('ep0', 'up'),
+      probe('ep1', 'degraded'),
+      probe('ep2', 'degraded'),
+      probe('ep3', 'unknown'),
+      probe('ep4', 'degraded'),
+      probe('ep5', 'degraded'),
+    ];
+    expect(determineStatus(probes)).toBe('partial_outage');
+  });
+
+  it('returns major_outage when all probes are degraded/unknown', () => {
+    const probes = [probe('ep0', 'degraded'), probe('ep1', 'unknown'), probe('ep2', 'degraded')];
+    expect(determineStatus(probes)).toBe('major_outage');
+  });
 });
 
 describe('extractExchangeStatus', () => {
@@ -94,6 +123,18 @@ describe('extractExchangeStatus', () => {
       probes,
       'https://api.example.com/exchange/status',
       fetch,
+    );
+    expect(result.exchange_active).toBe(false);
+    expect(result.trading_active).toBe(false);
+  });
+
+  it('returns false flags when fetch returns non-2xx', async () => {
+    const mockFetch = () => Promise.resolve(new Response('Service Unavailable', { status: 503 }));
+    const probes = [probe('exchange_status', 'up')];
+    const result = await extractExchangeStatus(
+      probes,
+      'https://api.example.com/exchange/status',
+      mockFetch as typeof fetch,
     );
     expect(result.exchange_active).toBe(false);
     expect(result.trading_active).toBe(false);
