@@ -1,4 +1,4 @@
-import type { Environment, Snapshot } from './types';
+import type { Environment, Snapshot, RegionProbe } from './types';
 
 export async function saveSnapshot(db: D1Database, snap: Snapshot): Promise<void> {
   await db
@@ -54,4 +54,29 @@ export async function pruneSnapshots(
 ): Promise<void> {
   const cutoff = nowMs - retentionDays * 24 * 60 * 60 * 1000;
   await db.prepare('DELETE FROM snapshots WHERE ts < ?').bind(cutoff).run();
+}
+
+export async function saveRegionProbe(
+  db: D1Database,
+  environment: Environment,
+  probe: RegionProbe,
+): Promise<void> {
+  await db
+    .prepare(
+      'INSERT OR REPLACE INTO region_probes (environment, region, probed_at, payload) VALUES (?, ?, ?, ?)',
+    )
+    .bind(environment, probe.region, probe.probed_at, JSON.stringify(probe))
+    .run();
+}
+
+export async function loadRecentRegionProbes(
+  db: D1Database,
+  environment: Environment,
+  sinceMs: number,
+): Promise<RegionProbe[]> {
+  const rows = await db
+    .prepare('SELECT payload FROM region_probes WHERE environment = ? AND probed_at >= ?')
+    .bind(environment, sinceMs)
+    .all<{ payload: string }>();
+  return rows.results.map((r) => JSON.parse(r.payload) as RegionProbe);
 }
