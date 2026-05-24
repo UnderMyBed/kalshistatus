@@ -1,10 +1,29 @@
 import type { WsSample } from './types';
 
 export async function sampleWebSocket(wsUrl: string, sampleMs: number): Promise<WsSample> {
-  const start = Date.now();
   return new Promise((resolve) => {
-    const hardTimeout = setTimeout(() => {
-      resolve({
+    let settled = false;
+    let handshakeMs: number | null = null;
+    let tickers = 0;
+    let connected = false;
+    let ws: WebSocket | undefined;
+    let hardTimer: ReturnType<typeof setTimeout>;
+    const start = Date.now();
+
+    function settle(result: WsSample): void {
+      if (settled) return;
+      settled = true;
+      clearTimeout(hardTimer);
+      try {
+        ws?.close();
+      } catch {
+        // already closed
+      }
+      resolve(result);
+    }
+
+    hardTimer = setTimeout(() => {
+      settle({
         connected: false,
         latency_ms: null,
         tickers_received: 0,
@@ -13,12 +32,10 @@ export async function sampleWebSocket(wsUrl: string, sampleMs: number): Promise<
       });
     }, sampleMs + 5_000);
 
-    let ws: WebSocket;
     try {
       ws = new WebSocket(wsUrl);
     } catch (err) {
-      clearTimeout(hardTimeout);
-      resolve({
+      settle({
         connected: false,
         latency_ms: null,
         tickers_received: 0,
@@ -28,12 +45,10 @@ export async function sampleWebSocket(wsUrl: string, sampleMs: number): Promise<
       return;
     }
 
-    let tickers = 0;
-    let connected = false;
-
     ws.addEventListener('open', () => {
       connected = true;
-      ws.send(JSON.stringify({ id: 1, cmd: 'subscribe', params: { channels: ['ticker_v2'] } }));
+      handshakeMs = Date.now() - start;
+      ws!.send(JSON.stringify({ id: 1, cmd: 'subscribe', params: { channels: ['ticker_v2'] } }));
     });
 
     ws.addEventListener('message', () => {
@@ -41,9 +56,7 @@ export async function sampleWebSocket(wsUrl: string, sampleMs: number): Promise<
     });
 
     ws.addEventListener('error', () => {
-      clearTimeout(hardTimeout);
-      ws.close();
-      resolve({
+      settle({
         connected,
         latency_ms: null,
         tickers_received: tickers,
@@ -53,12 +66,9 @@ export async function sampleWebSocket(wsUrl: string, sampleMs: number): Promise<
     });
 
     setTimeout(() => {
-      clearTimeout(hardTimeout);
-      const latency = connected ? Date.now() - start : null;
-      ws.close();
-      resolve({
+      settle({
         connected,
-        latency_ms: latency,
+        latency_ms: handshakeMs,
         tickers_received: tickers,
         sampled_at: Date.now(),
       });

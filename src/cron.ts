@@ -34,7 +34,7 @@ async function probeEnvironment(
   const status = determineStatus(probeResults);
 
   const wsBase = environment === 'prod' ? env.KALSHI_PROD_WS_BASE : env.KALSHI_DEMO_WS_BASE;
-  const sampleMs = parseInt(env.WS_SAMPLE_MS, 10) || 5000;
+  const sampleMs = Math.max(500, parseInt(env.WS_SAMPLE_MS, 10) || 5000);
   const ws_sample = await sampleWebSocket(wsBase, sampleMs);
 
   return {
