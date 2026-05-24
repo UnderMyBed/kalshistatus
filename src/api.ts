@@ -1,6 +1,6 @@
 import type { Env, Environment } from './types';
 import { readLatestSnapshot } from './kv';
-import { readSnapshotHistory, readSnapshotAt } from './storage';
+import { readSnapshotHistory, readSnapshotAt, loadRecentRegionProbes } from './storage';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -46,7 +46,10 @@ export async function handleApiStatus(request: Request, env: Env): Promise<Respo
     return Response.json({ error: 'no_data' }, { status: 404, headers: CORS });
   }
 
-  return Response.json(snapshot, {
+  const sinceMs = Date.now() - 2 * 60 * 1000;
+  const regions = await loadRecentRegionProbes(env.DB, environment, sinceMs);
+
+  return Response.json({ ...snapshot, regions }, {
     headers: { ...CORS, 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' },
   });
 }
