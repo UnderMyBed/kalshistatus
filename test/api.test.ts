@@ -6,6 +6,7 @@ import { writeSnapshotIfChanged } from '../src/kv';
 
 const SCHEMA = `CREATE TABLE IF NOT EXISTS snapshots (ts INTEGER NOT NULL, environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), payload TEXT NOT NULL, PRIMARY KEY (environment, ts))`;
 const REGION_SCHEMA = `CREATE TABLE IF NOT EXISTS region_probes (environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), region TEXT NOT NULL CHECK (region IN ('us-east', 'eu-west', 'asia')), probed_at INTEGER NOT NULL, payload TEXT NOT NULL, PRIMARY KEY (environment, region, probed_at))`;
+const UPTIME_SCHEMA = `CREATE TABLE IF NOT EXISTS uptime_metrics (environment TEXT NOT NULL CHECK (environment IN ('prod', 'demo')), window_hours INTEGER NOT NULL, computed_at INTEGER NOT NULL, ok_count INTEGER NOT NULL, total_count INTEGER NOT NULL, pct REAL NOT NULL, PRIMARY KEY (environment, window_hours))`;
 
 function makeSnap(overrides: Partial<Snapshot> = {}): Snapshot {
   return {
@@ -41,8 +42,10 @@ const CACHEABLE_TEST_URLS = [
 beforeEach(async () => {
   await env.DB.exec(SCHEMA);
   await env.DB.exec(REGION_SCHEMA);
+  await env.DB.exec(UPTIME_SCHEMA);
   await env.DB.prepare('DELETE FROM snapshots').run();
   await env.DB.prepare('DELETE FROM region_probes').run();
+  await env.DB.prepare('DELETE FROM uptime_metrics').run();
   const list = await env.KALSHI_KV.list();
   for (const k of list.keys) await env.KALSHI_KV.delete(k.name);
   for (const u of CACHEABLE_TEST_URLS) {

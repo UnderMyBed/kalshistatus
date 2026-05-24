@@ -10,9 +10,11 @@ and serves the results.
 - **Cron: fast** (`* * * * *`) — Probes Kalshi REST endpoints for both prod and
   demo environments. Writes results to D1 and KV (KV write-on-change).
 - **Cron: slow** (`0 * * * *`) — Processes changelog RSS, generates AI summaries,
-  pushes Prometheus metrics to Grafana, prunes old snapshots.
+  pushes Prometheus metrics to Grafana, prunes old snapshots, and recomputes
+  uptime windows.
 - **D1** (`kalshi_status` database) — Persistent storage for snapshots (90-day
-  retention), changelog summaries, and region probes.
+  retention), changelog summaries, region probes (7-day retention), and
+  precomputed uptime metrics (24h / 7d / 30d windows per environment).
 - **KV** (`KALSHI_KV`) — Read cache for the latest snapshot per environment.
   Written only on content change.
 - **Workers AI** — One-shot summarization of Kalshi changelog entries.

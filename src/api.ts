@@ -1,6 +1,7 @@
 import type { Env, Environment, ChangelogEntry, OverallStatus } from './types';
 import { readLatestSnapshot } from './kv';
 import { readSnapshotHistory, readSnapshotAt, loadRecentRegionProbes } from './storage';
+import { readUptimeMetrics } from './uptime';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -56,12 +57,15 @@ export async function handleApiStatus(request: Request, env: Env): Promise<Respo
   }
 
   const sinceMs = Date.now() - 60 * 60 * 1000;
-  const regions = await loadRecentRegionProbes(env.DB, environment, sinceMs);
+  const [regions, uptime] = await Promise.all([
+    loadRecentRegionProbes(env.DB, environment, sinceMs),
+    readUptimeMetrics(env.DB, environment),
+  ]);
 
-  return Response.json(
-    { ...snapshot, regions },
-    { headers: { ...CORS, 'Cache-Control': 'public, max-age=30' } },
-  );
+  const body = uptime ? { ...snapshot, regions, uptime } : { ...snapshot, regions };
+  return Response.json(body, {
+    headers: { ...CORS, 'Cache-Control': 'public, max-age=30' },
+  });
 }
 
 export async function handleApiHistory(request: Request, env: Env): Promise<Response> {

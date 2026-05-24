@@ -27,6 +27,9 @@
   const $bannerText = $('banner-text');
   const $bannerAge = $('banner-age');
   const $bannerCron = $('banner-cron');
+  const $bannerUptime = $('banner-uptime');
+  const $latencyChart = $('latency-chart');
+  const $latencyMeta = $('latency-meta');
   const $exchangeContent = $('exchange-content');
   const $changelogHeader = $('changelog-header');
   const $changelogBody = $('changelog-body');
@@ -71,6 +74,7 @@
     if (historyMode) exitHistory(false);
     fetchAndRender();
     fetchChangelog();
+    fetchLatencyHistory();
     updateTitle();
   }
   function updateEnvButtons() {
@@ -151,6 +155,37 @@
     const ageMs = Date.now() - (snap?.ts ?? Date.now());
     $bannerAge.textContent = `updated ${formatAge(ageMs)} ago`;
     $bannerCron.textContent = historyMode ? 'snapshot view' : 'polling every 15s';
+    renderUptime(snap?.uptime);
+  }
+
+  function uptimeClass(pct) {
+    if (pct >= 99.9) return '';
+    if (pct >= 99) return 'degraded';
+    if (pct > 0) return 'down';
+    return 'unknown';
+  }
+
+  function renderUptime(uptime) {
+    if (!uptime || !uptime.windows) {
+      $bannerUptime.innerHTML = '';
+      return;
+    }
+    const labels = { 24: '24h', 168: '7d', 720: '30d' };
+    const order = ['24', '168', '720'];
+    const items = order
+      .filter((k) => uptime.windows[k])
+      .map((k) => {
+        const w = uptime.windows[k];
+        const pct = Number(w.pct);
+        const cls = uptimeClass(pct);
+        const display =
+          w.total_count === 0 ? '—' : `${pct.toFixed(pct >= 99.99 ? 2 : pct >= 99 ? 2 : 1)}%`;
+        return `<div class="uptime-window">
+          <span class="uptime-window-pct ${cls}">${display}</span>
+          <span class="uptime-window-label">${labels[k]}</span>
+        </div>`;
+      });
+    $bannerUptime.innerHTML = items.join('');
   }
 
   function renderExchange(snap) {
@@ -256,6 +291,106 @@
         <span class="ws-latency latency ${lCls}">${lText}</span>
         <span class="ws-status ${sCls}">${sText}</span>
       </div>${errNote}`;
+  }
+
+  function renderLatencyChart(snapshots) {
+    if (!snapshots || snapshots.length < 2) {
+      $latencyChart.innerHTML = '<div class="latency-chart-empty">Collecting data…</div>';
+      $latencyMeta.textContent = '';
+      return;
+    }
+    const points = snapshots
+      .slice()
+      .sort((a, b) => a.ts - b.ts)
+      .map((snap) => {
+        const publicLatencies = (snap.endpoints ?? [])
+          .filter((ep) => !ep.requires_auth && ep.latency_ms != null)
+          .map((ep) => ep.latency_ms);
+        if (publicLatencies.length === 0) return { ts: snap.ts, latency: null };
+        const avg = publicLatencies.reduce((s, v) => s + v, 0) / publicLatencies.length;
+        return { ts: snap.ts, latency: Math.round(avg) };
+      })
+      .filter((p) => p.latency != null);
+
+    if (points.length < 2) {
+      $latencyChart.innerHTML = '<div class="latency-chart-empty">Collecting data…</div>';
+      return;
+    }
+
+    const W = 1000;
+    const H = 160;
+    const padding = { left: 38, right: 8, top: 12, bottom: 22 };
+    const innerW = W - padding.left - padding.right;
+    const innerH = H - padding.top - padding.bottom;
+
+    const tsMin = points[0].ts;
+    const tsMax = points[points.length - 1].ts;
+    const tsRange = Math.max(1, tsMax - tsMin);
+
+    const latencies = points.map((p) => p.latency);
+    const yMax = Math.max(...latencies, 100);
+    const yNice = Math.ceil(yMax / 100) * 100;
+
+    const x = (ts) => padding.left + ((ts - tsMin) / tsRange) * innerW;
+    const y = (l) => padding.top + (1 - l / yNice) * innerH;
+
+    const lineD =
+      `M${x(points[0].ts).toFixed(1)},${y(points[0].latency).toFixed(1)} ` +
+      points
+        .slice(1)
+        .map((p) => `L${x(p.ts).toFixed(1)},${y(p.latency).toFixed(1)}`)
+        .join(' ');
+    const areaD =
+      `M${x(points[0].ts).toFixed(1)},${y(0).toFixed(1)} ` +
+      points.map((p) => `L${x(p.ts).toFixed(1)},${y(p.latency).toFixed(1)}`).join(' ') +
+      ` L${x(points[points.length - 1].ts).toFixed(1)},${y(0).toFixed(1)} Z`;
+
+    const yTicks = [0, yNice / 2, yNice];
+    const gridlines = yTicks
+      .map(
+        (t) =>
+          `<line class="latency-gridline" x1="${padding.left}" x2="${W - padding.right}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" />`,
+      )
+      .join('');
+    const yLabels = yTicks
+      .map(
+        (t) =>
+          `<text class="latency-axis" x="${padding.left - 6}" y="${y(t).toFixed(1) + 3}" text-anchor="end">${t}ms</text>`,
+      )
+      .join('');
+
+    const xTickCount = 4;
+    const xLabels = Array.from({ length: xTickCount + 1 }, (_, i) => {
+      const ts = tsMin + (i * tsRange) / xTickCount;
+      const d = new Date(ts);
+      const label = `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+      const xv = x(ts);
+      const anchor = i === 0 ? 'start' : i === xTickCount ? 'end' : 'middle';
+      return `<text class="latency-axis" x="${xv.toFixed(1)}" y="${H - 6}" text-anchor="${anchor}">${label}</text>`;
+    }).join('');
+
+    $latencyChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Average public endpoint latency over the last 24 hours">
+      ${gridlines}
+      <path class="latency-area" d="${areaD}" />
+      <path class="latency-line" d="${lineD}" />
+      ${yLabels}
+      ${xLabels}
+    </svg>`;
+
+    const avg = Math.round(latencies.reduce((s, v) => s + v, 0) / latencies.length);
+    const p95 =
+      latencies.slice().sort((a, b) => a - b)[Math.floor(latencies.length * 0.95)] ?? null;
+    $latencyMeta.textContent = `avg ${avg}ms · p95 ${p95}ms · ${points.length} samples`;
+  }
+
+  async function fetchLatencyHistory() {
+    const res = await fetch(`/api/history?env=${currentEnv}&limit=1440`);
+    if (!res.ok) {
+      $latencyChart.innerHTML = '<div class="latency-chart-empty">Failed to load history</div>';
+      return;
+    }
+    const snapshots = await res.json();
+    renderLatencyChart(snapshots);
   }
 
   async function fetchChangelog() {
@@ -486,6 +621,7 @@
 
     fetchAndRender();
     fetchChangelog();
+    fetchLatencyHistory();
     if (!historyMode) startPolling();
     fetchVersion();
     updateTitle();
