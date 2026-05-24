@@ -71,6 +71,7 @@ export interface Env {
   KALSHI_KV: KVNamespace;
   AI: Ai;
   ASSETS: Fetcher;
+  COST_COUNTER: DurableObjectNamespace<import('./cost-counter-do').CostCounter>;
   KALSHI_PROD_REST_BASE: string;
   KALSHI_PROD_WS_BASE: string;
   KALSHI_DEMO_REST_BASE: string;

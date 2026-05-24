@@ -10,6 +10,7 @@ import {
 } from './api';
 import { handleFeed } from './feed';
 import { CostController } from './cost-control';
+export { CostCounter } from './cost-counter-do';
 import { buildCacheKey, readCache, writeCache, withCacheHit } from './edge-cache';
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -80,7 +81,7 @@ export default {
       return withSecurityHeaders(Response.json({ ok: true, ts: Date.now() }), pathname);
     }
 
-    const { allow } = await new CostController(env.KALSHI_KV).check();
+    const { allow } = await new CostController(env.COST_COUNTER).check();
     if (!allow) {
       return withSecurityHeaders(
         Response.json(
@@ -125,7 +126,7 @@ export default {
     if (event.cron === '0 * * * *') {
       ctx.waitUntil(runSlowCron(env));
     } else {
-      const mode = await new CostController(env.KALSHI_KV).getMode();
+      const mode = await new CostController(env.COST_COUNTER).getMode();
       if (mode !== 'blocked') ctx.waitUntil(runFastCron(env));
     }
   },

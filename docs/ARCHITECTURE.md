@@ -20,6 +20,9 @@ and serves the results.
 - **Workers AI** — One-shot summarization of Kalshi changelog entries.
 - **Static Assets** (`./public`) — Dashboard HTML/JS/CSS served via the
   `[assets]` binding.
+- **Durable Object: `CostCounter`** — Single-writer atomic counter for
+  the daily request budget (see [ADR-0012](adr/0012-cost-counter-durable-object.md)).
+  SQLite-backed, free-tier compatible.
 
 ## Endpoint health groups
 

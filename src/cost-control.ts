@@ -1,93 +1,21 @@
-const SOFT_THRESHOLD = 80_000;
-const HARD_THRESHOLD = 95_000;
-const KV_KEY = 'cost:daily_count';
-const PERSIST_EVERY = 100;
+import type { CostCheckResult, CostCounter, CostMode } from './cost-counter-do';
 
-interface CounterState {
-  count: number;
-  day: string;
-}
-
-type CostMode = 'normal' | 'shed' | 'blocked';
-
-export interface CheckResult {
-  allow: boolean;
-  mode: CostMode;
-}
+const COUNTER_NAME = 'global';
 
 export class CostController {
-  private kv: KVNamespace;
-  private inMemoryCount = 0;
-  private inMemoryDay = '';
-  private loaded = false;
+  private stub: DurableObjectStub<CostCounter>;
 
-  constructor(kv: KVNamespace) {
-    this.kv = kv;
+  constructor(ns: DurableObjectNamespace<CostCounter>) {
+    this.stub = ns.get(ns.idFromName(COUNTER_NAME));
   }
 
-  async check(): Promise<CheckResult> {
-    const today = new Date().toISOString().slice(0, 10);
-    if (this.loaded && this.inMemoryDay !== today) {
-      this.loaded = false;
-      this.inMemoryCount = 0;
-      this.inMemoryDay = today;
-    }
-
-    await this.load();
-    this.inMemoryCount++;
-
-    if (this.inMemoryCount % PERSIST_EVERY === 0) {
-      await this.persist();
-    }
-
-    if (this.inMemoryCount >= HARD_THRESHOLD) {
-      await this.persist();
-      return { allow: false, mode: 'blocked' };
-    }
-    if (this.inMemoryCount >= SOFT_THRESHOLD) {
-      return { allow: true, mode: 'shed' };
-    }
-    return { allow: true, mode: 'normal' };
+  check(): Promise<CostCheckResult> {
+    return this.stub.check();
   }
 
-  async getMode(): Promise<CostMode> {
-    const today = new Date().toISOString().slice(0, 10);
-    const raw = await this.kv.get(KV_KEY);
-    if (!raw) return 'normal';
-    const state: CounterState = JSON.parse(raw);
-    if (state.day !== today) return 'normal';
-    if (state.count >= HARD_THRESHOLD) return 'blocked';
-    if (state.count >= SOFT_THRESHOLD) return 'shed';
-    return 'normal';
-  }
-
-  private async load(): Promise<void> {
-    if (this.loaded) return;
-    this.loaded = true;
-
-    const today = new Date().toISOString().slice(0, 10);
-    const raw = await this.kv.get(KV_KEY);
-    if (!raw) {
-      this.inMemoryCount = 0;
-      this.inMemoryDay = today;
-      return;
-    }
-
-    const state: CounterState = JSON.parse(raw);
-    if (state.day !== today) {
-      this.inMemoryCount = 0;
-      this.inMemoryDay = today;
-    } else {
-      this.inMemoryCount = state.count;
-      this.inMemoryDay = state.day;
-    }
-  }
-
-  private async persist(): Promise<void> {
-    await this.kv.put(
-      KV_KEY,
-      JSON.stringify({ count: this.inMemoryCount, day: this.inMemoryDay }),
-      { expirationTtl: 90_000 },
-    );
+  getMode(): Promise<CostMode> {
+    return this.stub.getMode();
   }
 }
+
+export type { CostCheckResult, CostMode };
