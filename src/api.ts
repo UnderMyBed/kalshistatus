@@ -52,7 +52,7 @@ export async function handleApiStatus(request: Request, env: Env): Promise<Respo
   return Response.json(
     { ...snapshot, regions },
     {
-      headers: { ...CORS, 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' },
+      headers: { ...CORS, 'Cache-Control': 'public, max-age=30' },
     },
   );
 }

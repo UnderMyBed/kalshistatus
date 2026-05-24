@@ -30,6 +30,7 @@ export function coloToRegion(colo: string): Region | null {
 export async function detectRegion(fetchFn: typeof fetch): Promise<Region | null> {
   try {
     const res = await fetchFn('https://cloudflare.com/cdn-cgi/trace');
+    if (!res.ok) return null;
     const text = await res.text();
     const match = text.match(/^colo=(\w+)$/m);
     if (!match) return null;
