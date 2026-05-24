@@ -17,9 +17,13 @@ async function probeEnvironment(
   const defs = getEndpointDefs(baseUrl);
   const probeResults = await Promise.all(
     defs.map(async (def) => {
-      const path = new URL(def.url).pathname + new URL(def.url).search;
-      const authHeaders = await buildAuthHeaders(def.method, path, keyId, privateKey);
-      return probeEndpoint(def, authHeaders, fetchFn);
+      try {
+        const path = new URL(def.url).pathname + new URL(def.url).search;
+        const authHeaders = await buildAuthHeaders(def.method, path, keyId, privateKey);
+        return probeEndpoint(def, authHeaders, fetchFn);
+      } catch {
+        return probeEndpoint(def, {}, fetchFn);
+      }
     }),
   );
 

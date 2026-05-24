@@ -15,10 +15,8 @@ export async function writeSnapshotIfChanged(kv: KVNamespace, snap: Snapshot): P
   const newHash = await sha256(payload);
   const prevHash = await kv.get(HASH_KEY(snap.environment));
   if (prevHash === newHash) return false;
-  await Promise.all([
-    kv.put(KV_KEY(snap.environment), payload),
-    kv.put(HASH_KEY(snap.environment), newHash),
-  ]);
+  await kv.put(KV_KEY(snap.environment), payload);
+  await kv.put(HASH_KEY(snap.environment), newHash);
   return true;
 }
 
