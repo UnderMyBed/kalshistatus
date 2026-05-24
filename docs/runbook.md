@@ -49,7 +49,6 @@ Runtime circuit breaker in `src/cost-control.ts` is the main protection until ra
 
 See `incidents/` directory for post-mortems.
 
-
 ## Acceptance tests
 
 ```bash
