@@ -103,6 +103,22 @@ describe('handleGrafanaInit', () => {
     expect(patchCall[1].method).toBe('PATCH');
   });
 
+  it('returns 500 when re-enable PATCH fails', async () => {
+    const mockFetch = mockFetchSequence([
+      { body: { status: 'success', uid: 'abc123' } },
+      { body: { accessToken: 'disabled-tok', isEnabled: false, uid: 'pd1' } },
+      { body: { error: 'forbidden' }, status: 403 },
+    ]);
+    const res = await handleGrafanaInit(
+      makeRequest('kalshi-grafana-init-2026'),
+      'token',
+      mockFetch,
+    );
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain('re-enable');
+  });
+
   it('returns 500 when public dashboard creation returns no accessToken', async () => {
     const mockFetch = mockFetchSequence([
       { body: { status: 'success', uid: 'abc123' } },

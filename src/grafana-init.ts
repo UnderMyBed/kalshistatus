@@ -98,10 +98,17 @@ export async function handleGrafanaInit(
   if (existing.accessToken) {
     accessToken = existing.accessToken;
     if (!existing.isEnabled && existing.uid) {
-      await fetchFn(
+      const patchRes = await fetchFn(
         `${GRAFANA_STACK_URL}/api/dashboards/uid/${uid}/public-dashboards/${existing.uid}`,
         { method: 'PATCH', headers, body: JSON.stringify({ isEnabled: true }) },
       );
+      if (!patchRes.ok) {
+        const detail = await patchRes.json().catch(() => ({}));
+        return Response.json(
+          { error: 'public dashboard re-enable failed', detail },
+          { status: 500 },
+        );
+      }
     }
   } else {
     const pubRes = await fetchFn(

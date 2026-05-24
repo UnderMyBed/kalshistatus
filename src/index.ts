@@ -19,6 +19,7 @@ export default {
     }
 
     if (pathname === '/healthz') return Response.json({ ok: true, ts: Date.now() });
+    if (pathname === '/api/grafana-init') return handleGrafanaInit(request, env.GRAFANA_API_TOKEN);
 
     const { allow } = await new CostController(env.KALSHI_KV).check();
     if (!allow) {
@@ -27,8 +28,6 @@ export default {
         { status: 503, headers: { 'Retry-After': '3600' } },
       );
     }
-
-    if (pathname === '/api/grafana-init') return handleGrafanaInit(request, env.GRAFANA_API_TOKEN);
     if (pathname === '/api/status') return handleApiStatus(request, env);
     if (pathname === '/api/history') return handleApiHistory(request, env);
     if (pathname === '/badge.svg') return handleBadge(request, env);
