@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0a0a"/>
+      <stop offset="100%" stop-color="#141414"/>
+    </linearGradient>
+    <radialGradient id="dot" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.95"/>
+      <stop offset="55%" stop-color="#22c55e" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="180" cy="320" r="84" fill="url(#dot)"/>
+  <circle cx="180" cy="320" r="18" fill="#22c55e"/>
+  <text x="300" y="290" font-family="ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace" font-size="58" font-weight="500" fill="#e5e5e5">
+    kalshistatus.dev
+  </text>
+  <text x="300" y="360" font-family="-apple-system, system-ui, 'Inter', sans-serif" font-size="28" fill="#a3a3a3">
+    real-time status &amp; performance for the Kalshi API
+  </text>
+  <text x="300" y="410" font-family="-apple-system, system-ui, 'Inter', sans-serif" font-size="22" fill="#525252">
+    for the engineers shipping against it
+  </text>
+  <line x1="60" y1="540" x2="1140" y2="540" stroke="#2a2a2a" stroke-width="1"/>
+  <text x="60" y="580" font-family="ui-monospace, 'JetBrains Mono', monospace" font-size="20" fill="#525252">
+    @UnderMyBed
+  </text>
+  <text x="1140" y="580" text-anchor="end" font-family="ui-monospace, 'JetBrains Mono', monospace" font-size="20" fill="#525252">
+    cloudflare workers · grafana cloud
+  </text>
+</svg>

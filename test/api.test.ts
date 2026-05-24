@@ -137,6 +137,15 @@ describe('GET /badge.svg', () => {
     const body = await res.text();
     expect(body).toContain('unknown');
   });
+
+  it('uses the shared status palette (not a duplicate hex)', async () => {
+    const snap = makeSnap();
+    await saveSnapshot(env.DB, snap);
+    await writeSnapshotIfChanged(env.KALSHI_KV, snap);
+    const res = await SELF.fetch('https://example.com/badge.svg?env=prod');
+    const body = await res.text();
+    expect(body).toContain('#22c55e');
+  });
 });
 
 describe('GET /api/status?at=', () => {
@@ -158,6 +167,70 @@ describe('GET /api/status?at=', () => {
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe('Snapshot not found');
+  });
+});
+
+describe('GET /api/changelog', () => {
+  it('returns recent summaries newest first', async () => {
+    await env.DB.exec(
+      'CREATE TABLE IF NOT EXISTS changelog_summaries (link TEXT PRIMARY KEY, pub_date_ts INTEGER NOT NULL, title TEXT NOT NULL, summary_ai TEXT NOT NULL, generated_at INTEGER NOT NULL)',
+    );
+    await env.DB.prepare('DELETE FROM changelog_summaries').run();
+    for (let i = 1; i <= 3; i++) {
+      await env.DB.prepare(
+        'INSERT INTO changelog_summaries (link, pub_date_ts, title, summary_ai, generated_at) VALUES (?, ?, ?, ?, ?)',
+      )
+        .bind(`https://kalshi.com/post/${i}`, i * 1000, `Post ${i}`, `Summary ${i}`, Date.now())
+        .run();
+    }
+    const res = await SELF.fetch('https://example.com/api/changelog?limit=10');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { link: string; pub_date_ts: number }[];
+    expect(body).toHaveLength(3);
+    expect(body[0].pub_date_ts).toBeGreaterThan(body[1].pub_date_ts);
+  });
+});
+
+describe('GET /api/version', () => {
+  it('returns version + commit from env', async () => {
+    const res = await SELF.fetch('https://example.com/api/version');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { version: string; commit: string };
+    expect(typeof body.version).toBe('string');
+    expect(body.version.length).toBeGreaterThan(0);
+  });
+});
+
+describe('GET /feed.xml', () => {
+  it('returns RSS XML', async () => {
+    const res = await SELF.fetch('https://example.com/feed.xml');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('rss');
+    const body = await res.text();
+    expect(body).toContain('<rss version="2.0"');
+    expect(body).toContain('<channel>');
+  });
+});
+
+describe('GET /architecture', () => {
+  it('redirects to GitHub docs', async () => {
+    const res = await SELF.fetch('https://example.com/architecture', { redirect: 'manual' });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toContain(
+      'github.com/UnderMyBed/kalshistatus/blob/main/docs/ARCHITECTURE.md',
+    );
+  });
+});
+
+describe('HEAD support', () => {
+  it('returns 200 with no body for HEAD on /api/status', async () => {
+    const snap = makeSnap();
+    await saveSnapshot(env.DB, snap);
+    await writeSnapshotIfChanged(env.KALSHI_KV, snap);
+    const res = await SELF.fetch('https://example.com/api/status?env=prod', { method: 'HEAD' });
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toBe('');
   });
 });
 

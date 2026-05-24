@@ -47,6 +47,13 @@ export interface Snapshot {
   ws_sample?: WsSample;
 }
 
+export interface ChangelogEntry {
+  link: string;
+  title: string;
+  summary_ai: string;
+  pub_date_ts: number;
+}
+
 export interface Env {
   DB: D1Database;
   KALSHI_KV: KVNamespace;
@@ -61,6 +68,8 @@ export interface Env {
   GRAFANA_PROM_URL: string;
   GRAFANA_INSTANCE_ID: string;
   PUBLIC_DASHBOARD_URL: string;
+  VERSION: string;
+  COMMIT_SHA: string;
   KALSHI_PROD_KEY_ID?: string;
   KALSHI_PROD_PRIVATE_KEY?: string;
   KALSHI_DEMO_KEY_ID?: string;

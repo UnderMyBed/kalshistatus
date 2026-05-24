@@ -1,6 +1,14 @@
 import type { Env } from './types';
 import { runFastCron, runSlowCron } from './cron';
-import { handleApiStatus, handleApiHistory, handleBadge } from './api';
+import {
+  handleApiStatus,
+  handleApiHistory,
+  handleBadge,
+  handleApiChangelog,
+  handleApiVersion,
+  handleArchitectureRedirect,
+} from './api';
+import { handleFeed } from './feed';
 import { CostController } from './cost-control';
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -73,8 +81,16 @@ export default {
       response = await handleApiStatus(request, env);
     } else if (pathname === '/api/history') {
       response = await handleApiHistory(request, env);
+    } else if (pathname === '/api/changelog') {
+      response = await handleApiChangelog(request, env);
+    } else if (pathname === '/api/version') {
+      response = handleApiVersion(request, env);
     } else if (pathname === '/badge.svg') {
       response = await handleBadge(request, env);
+    } else if (pathname === '/feed.xml') {
+      response = await handleFeed(env);
+    } else if (pathname === '/architecture') {
+      response = handleArchitectureRedirect();
     } else {
       response = await env.ASSETS.fetch(request);
     }

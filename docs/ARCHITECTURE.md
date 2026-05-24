@@ -45,15 +45,21 @@ HTTP / → serve public/index.html
 
 ## Routes
 
-| Path           | Method    | Description                                  |
-| -------------- | --------- | -------------------------------------------- |
-| `/`            | GET, HEAD | Dashboard HTML                               |
-| `/embed`       | GET, HEAD | iframe-friendly compact status widget        |
-| `/badge.svg`   | GET, HEAD | SVG badge for embedding (`?env=prod\|demo`)  |
-| `/healthz`     | GET, HEAD | Liveness probe                               |
-| `/api/status`  | GET, HEAD | Latest snapshot (`?env=prod\|demo&at=<ts>`)  |
-| `/api/history` | GET, HEAD | Snapshot history (`?env=prod\|demo&limit=N`) |
-| (all)          | OPTIONS   | CORS preflight                               |
+| Path             | Method    | Description                                   |
+| ---------------- | --------- | --------------------------------------------- |
+| `/`              | GET, HEAD | Dashboard HTML                                |
+| `/embed`         | GET, HEAD | iframe-friendly compact status widget         |
+| `/badge.svg`     | GET, HEAD | SVG badge for embedding (`?env=prod\|demo`)   |
+| `/healthz`       | GET, HEAD | Liveness probe                                |
+| `/api/status`    | GET, HEAD | Latest snapshot (`?env=prod\|demo&at=<ts>`)   |
+| `/api/history`   | GET, HEAD | Snapshot history (`?env=prod\|demo&limit=N`)  |
+| `/api/changelog` | GET, HEAD | AI-summarized Kalshi changelog entries        |
+| `/api/version`   | GET, HEAD | Deployed `{ version, commit }`                |
+| `/feed.xml`      | GET, HEAD | RSS 2.0 feed of changelog entries             |
+| `/architecture`  | GET       | 302 → GitHub source of `docs/ARCHITECTURE.md` |
+| `/openapi.yaml`  | GET, HEAD | OpenAPI 3.1 spec for the REST API             |
+| `/og.svg`        | GET, HEAD | Open Graph image (1200×630 SVG)               |
+| (all)            | OPTIONS   | CORS preflight                                |
 
 ## Security headers
 
