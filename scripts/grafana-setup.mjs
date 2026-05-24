@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 /**
- * One-time Grafana dashboard provisioning.
+ * Grafana dashboard provisioning — idempotent, safe to run on every deploy.
  * Run: GRAFANA_STACK_URL=https://<stack>.grafana.net GRAFANA_SA_TOKEN=<token> node scripts/grafana-setup.mjs
  */
 
-const STACK_URL = process.env.GRAFANA_STACK_URL;
+const STACK_URL = process.env.GRAFANA_STACK_URL?.replace(/\/$/, '');
 const TOKEN = process.env.GRAFANA_SA_TOKEN;
 
 if (!STACK_URL || !TOKEN) {
   console.error('Set GRAFANA_STACK_URL and GRAFANA_SA_TOKEN');
   process.exit(1);
 }
+
+const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` };
 
 const dashboard = {
   title: 'Kalshi API Status',
@@ -59,25 +61,60 @@ const dashboard = {
   refresh: '1m',
 };
 
-const body = JSON.stringify({ dashboard, overwrite: true, folderId: 0 });
-
-const res = await fetch(`${STACK_URL}/api/dashboards/db`, {
+// Step 1: create/update dashboard
+const createRes = await fetch(`${STACK_URL}/api/dashboards/db`, {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
-  body,
+  headers,
+  body: JSON.stringify({ dashboard, overwrite: true, folderId: 0 }),
 });
 
-const result = await res.json();
-if (result.status === 'success') {
-  const publicUrl = `${STACK_URL}/d/${result.uid}`;
-  console.log('Dashboard created:', publicUrl);
-  console.log('');
-  console.log('Next: set PUBLIC_DASHBOARD_URL in wrangler.toml:');
-  console.log(`  PUBLIC_DASHBOARD_URL = "${publicUrl}"`);
-  console.log('');
-  console.log('Then make the dashboard public in Grafana:');
-  console.log('  Dashboard settings → Share → Public dashboards → Enable');
-} else {
-  console.error('Failed:', JSON.stringify(result, null, 2));
+const created = await createRes.json();
+if (created.status !== 'success') {
+  console.error('Dashboard creation failed:', JSON.stringify(created, null, 2));
   process.exit(1);
 }
+
+const uid = created.uid;
+console.log('Dashboard created/updated, uid:', uid);
+
+// Step 2: check for existing public dashboard to keep URL stable across re-runs
+const getRes = await fetch(`${STACK_URL}/api/dashboards/uid/${uid}/public-dashboards`, {
+  headers,
+});
+const existing = await getRes.json();
+
+let accessToken;
+
+if (existing.accessToken) {
+  accessToken = existing.accessToken;
+  if (!existing.isEnabled && existing.uid) {
+    await fetch(`${STACK_URL}/api/dashboards/uid/${uid}/public-dashboards/${existing.uid}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ isEnabled: true }),
+    });
+    console.log('Re-enabled existing public dashboard.');
+  } else {
+    console.log('Reusing existing public dashboard.');
+  }
+} else {
+  const pubRes = await fetch(`${STACK_URL}/api/dashboards/uid/${uid}/public-dashboards`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ isEnabled: true }),
+  });
+
+  const pub = await pubRes.json();
+  if (!pub.accessToken) {
+    console.error('Public dashboard creation failed:', JSON.stringify(pub, null, 2));
+    process.exit(1);
+  }
+  accessToken = pub.accessToken;
+}
+
+const publicUrl = `${STACK_URL}/public-dashboards/${accessToken}`;
+console.log('');
+console.log('PUBLIC URL:', publicUrl);
+console.log('');
+console.log('Set in wrangler.toml:');
+console.log(`  PUBLIC_DASHBOARD_URL = "${publicUrl}"`);
