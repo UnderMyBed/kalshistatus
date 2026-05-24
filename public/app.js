@@ -73,9 +73,8 @@
     sparkBuffers.clear();
     if (historyMode) {
       exitHistory(false);
-    } else {
-      fetchAndRender();
     }
+    fetchAndRender();
     updateTitle();
   }
   function updateEnvButtons() {
@@ -226,12 +225,13 @@
     const lText = latencyText(ws.latency_ms ?? null);
     const lCls = latencyClass(ws.latency_ms ?? null);
     const sampledAgo = formatAge(Date.now() - (ws.sampled_at ?? Date.now()));
+    const tickersRx = escHtml(String(ws.tickers_received ?? 0));
     const errNote = ws.error ? `<div class="error-text">${escHtml(ws.error)}</div>` : '';
     $wsContent.innerHTML = `
-      <div class="ws-meta">sampled ${sampledAgo} ago · ${ws.tickers_received ?? 0} tickers received</div>
+      <div class="ws-meta">sampled ${sampledAgo} ago · ${tickersRx} tickers received</div>
       <div class="ws-row">
         <span class="ws-channel">orderbook_delta</span>
-        <span class="ws-count">${ws.tickers_received ?? 0}</span>
+        <span class="ws-count">${tickersRx}</span>
         <span class="ws-latency latency ${lCls}">${lText}</span>
         <span class="ws-status ${sCls}">${sText}</span>
       </div>${errNote}`;
@@ -341,8 +341,8 @@
       $histPrev.disabled = idx <= 0;
       $histNext.disabled = idx < 0 || idx >= historyList.length - 1;
     } else {
-      $histPrev.disabled = false;
-      $histNext.disabled = false;
+      $histPrev.disabled = true;
+      $histNext.disabled = true;
     }
   }
 

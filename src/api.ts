@@ -25,6 +25,9 @@ export async function handleApiStatus(request: Request, env: Env): Promise<Respo
 
   const atParam = url.searchParams.get('at');
   if (atParam !== null) {
+    if (!/^\d+$/.test(atParam)) {
+      return Response.json({ error: 'Invalid timestamp' }, { status: 400, headers: CORS });
+    }
     const ts = parseInt(atParam, 10);
     if (!Number.isFinite(ts) || ts <= 0) {
       return Response.json({ error: 'Invalid timestamp' }, { status: 400, headers: CORS });
