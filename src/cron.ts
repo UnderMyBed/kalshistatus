@@ -1,6 +1,11 @@
 import type { Env, Snapshot, EndpointProbe } from './types';
-import { getEndpointDefs, buildAuthHeaders, probeEndpoint } from './kalshi-client';
-import { determineStatus, extractExchangeStatus } from './status';
+import {
+  getEndpointDefs,
+  buildAuthHeaders,
+  probeEndpoint,
+  type ProbeOutcome,
+} from './kalshi-client';
+import { determineStatus, exchangeStatusFromBody } from './status';
 import { saveSnapshot, pruneSnapshots, saveRegionProbe } from './storage';
 import { writeSnapshotIfChanged } from './kv';
 import { fetchAndSummarizeChangelog } from './changelog';
@@ -19,21 +24,24 @@ async function probeEnvironment(
     environment === 'prod' ? env.KALSHI_PROD_PRIVATE_KEY : env.KALSHI_DEMO_PRIVATE_KEY;
 
   const defs = getEndpointDefs(baseUrl);
-  const probeResults: EndpointProbe[] = await Promise.all(
-    defs.map(async (def) => {
+  const outcomes: ProbeOutcome[] = await Promise.all(
+    defs.map(async (def): Promise<ProbeOutcome> => {
       if (!def.requires_auth) {
         return probeEndpoint(def, {}, fetchFn);
       }
       if (!keyId || !privateKey) {
         return {
-          name: def.name,
-          url: def.url,
-          method: def.method,
-          latency_ms: null,
-          status: 'unknown',
-          http_status: null,
-          requires_auth: true,
-          error: 'no_credentials',
+          probe: {
+            name: def.name,
+            url: def.url,
+            method: def.method,
+            latency_ms: null,
+            status: 'unknown',
+            http_status: null,
+            requires_auth: true,
+            error: 'no_credentials',
+          },
+          body: null,
         };
       }
       const path = new URL(def.url).pathname + new URL(def.url).search;
@@ -42,8 +50,9 @@ async function probeEnvironment(
     }),
   );
 
-  const exchangeUrl = `${baseUrl}/exchange/status`;
-  const exchange = await extractExchangeStatus(probeResults, exchangeUrl, fetchFn);
+  const probeResults: EndpointProbe[] = outcomes.map((o) => o.probe);
+  const exchangeBody = outcomes.find((o) => o.probe.name === 'exchange_status')?.body ?? null;
+  const exchange = exchangeStatusFromBody(exchangeBody);
   const status = determineStatus(probeResults);
 
   const wsBase = environment === 'prod' ? env.KALSHI_PROD_WS_BASE : env.KALSHI_DEMO_WS_BASE;
@@ -105,6 +114,18 @@ export async function runFastCron(env: Env, fetchFn: typeof fetch = fetch): Prom
 
 export async function runSlowCron(env: Env): Promise<void> {
   const retentionDays = parseInt(env.SNAPSHOT_RETENTION_DAYS, 10) || 90;
-  await pruneSnapshots(env.DB, Date.now(), retentionDays);
-  await fetchAndSummarizeChangelog(env);
+  await Promise.all([
+    pruneSnapshots(env.DB, Date.now(), retentionDays),
+    pruneRegionProbes(env.DB, Date.now(), 7),
+    fetchAndSummarizeChangelog(env),
+  ]);
+}
+
+async function pruneRegionProbes(
+  db: D1Database,
+  nowMs: number,
+  retentionDays: number,
+): Promise<void> {
+  const cutoff = nowMs - retentionDays * 24 * 60 * 60 * 1000;
+  await db.prepare('DELETE FROM region_probes WHERE probed_at < ?').bind(cutoff).run();
 }

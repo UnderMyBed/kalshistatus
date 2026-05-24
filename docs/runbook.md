@@ -42,6 +42,10 @@ console output surface there directly.
 - Runtime cost circuit breaker (`src/cost-control.ts`): soft 80K req/day,
   hard 95K req/day
 - All public routes hardened with security headers via `withSecurityHeaders()`
+- Edge caching via `caches.default` on `/api/*`, `/badge.svg`, `/feed.xml`
+  (see [ADR-0010](adr/0010-edge-caching-and-region-history.md)). Cache hits
+  return `X-Cache: HIT`; `curl -sI` to verify during incidents.
+- `region_probes` table prunes to 7 days in `runSlowCron`.
 
 ### Known gaps (free-plan limitations)
 
@@ -104,6 +108,15 @@ production in a state that doesn't match `main`.
 
 Snapshots are pruned at 90-day retention by `runSlowCron`. To change retention,
 update `SNAPSHOT_RETENTION_DAYS` in `wrangler.toml` and document why in an ADR.
+
+Region probes are pruned at 7-day retention by `runSlowCron`.
+
+To force-refresh the edge cache after an incident fix:
+
+```bash
+# Cache-bust by appending a unique query param, then the next plain hit repopulates
+curl -s "https://kalshistatus.dev/api/status?env=prod&_bust=$(date +%s)" >/dev/null
+```
 
 ## Incidents
 

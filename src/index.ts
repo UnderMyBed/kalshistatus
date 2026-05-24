@@ -10,6 +10,7 @@ import {
 } from './api';
 import { handleFeed } from './feed';
 import { CostController } from './cost-control';
+import { buildCacheKey, readCache, writeCache, withCacheHit } from './edge-cache';
 
 const SECURITY_HEADERS: Record<string, string> = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
@@ -40,6 +41,20 @@ function withSecurityHeaders(res: Response, pathname: string): Response {
   }
   const body = NULL_BODY_STATUSES.has(res.status) ? null : res.body;
   return new Response(body, { status: res.status, statusText: res.statusText, headers });
+}
+
+async function cached(
+  request: Request,
+  ctx: ExecutionContext,
+  ttl: number,
+  handler: () => Promise<Response>,
+): Promise<Response> {
+  const key = buildCacheKey(request);
+  const hit = await readCache(key);
+  if (hit) return withCacheHit(hit);
+  const res = await handler();
+  writeCache(ctx, key, res, ttl);
+  return res;
 }
 
 export default {
@@ -78,17 +93,17 @@ export default {
 
     let response: Response;
     if (pathname === '/api/status') {
-      response = await handleApiStatus(request, env);
+      response = await cached(request, ctx, 15, () => handleApiStatus(request, env));
     } else if (pathname === '/api/history') {
-      response = await handleApiHistory(request, env);
+      response = await cached(request, ctx, 60, () => handleApiHistory(request, env));
     } else if (pathname === '/api/changelog') {
-      response = await handleApiChangelog(request, env);
+      response = await cached(request, ctx, 300, () => handleApiChangelog(request, env));
     } else if (pathname === '/api/version') {
-      response = handleApiVersion(request, env);
+      response = await cached(request, ctx, 300, async () => handleApiVersion(request, env));
     } else if (pathname === '/badge.svg') {
-      response = await handleBadge(request, env);
+      response = await cached(request, ctx, 60, () => handleBadge(request, env));
     } else if (pathname === '/feed.xml') {
-      response = await handleFeed(env);
+      response = await cached(request, ctx, 600, () => handleFeed(env));
     } else if (pathname === '/architecture') {
       response = handleArchitectureRedirect();
     } else {
@@ -103,7 +118,6 @@ export default {
       });
     }
 
-    ctx; // unused but keep for future cron-on-fetch patterns
     return withSecurityHeaders(response, pathname);
   },
 
