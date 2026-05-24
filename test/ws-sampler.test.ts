@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { sampleWebSocket } from '../src/ws-sampler';
+import { ageFromData, sampleWebSocket } from '../src/ws-sampler';
 
 const FAKE_PEM = 'pem-placeholder';
 
@@ -103,5 +103,44 @@ describe('sampleWebSocket', () => {
       'orderbook_delta',
       'communications',
     ]);
+  });
+});
+
+describe('ageFromData', () => {
+  it('returns a sane ms duration for a Kalshi message with seconds-scale ts (2s ago)', () => {
+    const tsSeconds = Math.floor(Date.now() / 1000) - 2;
+    const data = JSON.stringify({ type: 'trade', msg: { ts: tsSeconds } });
+    const age = ageFromData(data);
+    expect(age).not.toBeNull();
+    expect(age!).toBeGreaterThanOrEqual(1500);
+    expect(age!).toBeLessThan(5000);
+  });
+
+  it('still works for ms-scale ts (defensive against a future Kalshi shape change)', () => {
+    const tsMs = Date.now() - 2000;
+    const data = JSON.stringify({ type: 'trade', msg: { ts: tsMs } });
+    const age = ageFromData(data);
+    expect(age).not.toBeNull();
+    expect(age!).toBeGreaterThanOrEqual(1500);
+    expect(age!).toBeLessThan(5000);
+  });
+
+  it('returns null when ts is missing or non-numeric', () => {
+    expect(ageFromData(JSON.stringify({ type: 'trade', msg: {} }))).toBeNull();
+    expect(ageFromData(JSON.stringify({ type: 'trade' }))).toBeNull();
+    expect(ageFromData(JSON.stringify({ type: 'trade', msg: { ts: 'oops' } }))).toBeNull();
+  });
+
+  it('returns null for non-JSON or non-string input', () => {
+    expect(ageFromData('not json')).toBeNull();
+    expect(ageFromData(42)).toBeNull();
+    expect(ageFromData(null)).toBeNull();
+  });
+
+  it('regression guard: ts=1777858333 (seconds, observed in prod 2026-05-24) yields <1 year, not 53 years', () => {
+    const data = JSON.stringify({ type: 'trade', msg: { ts: 1777858333 } });
+    const age = ageFromData(data);
+    expect(age).not.toBeNull();
+    expect(Math.abs(age!)).toBeLessThan(365 * 24 * 60 * 60 * 1000);
   });
 });

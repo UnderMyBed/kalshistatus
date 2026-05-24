@@ -145,11 +145,12 @@ function classifyMessage(data: unknown): WsChannelName | null {
   return null;
 }
 
-function ageFromData(data: unknown): number | null {
+export function ageFromData(data: unknown): number | null {
   const msg = parseMessage(data);
   const ts = msg?.msg?.ts;
   if (typeof ts !== 'number' || !Number.isFinite(ts)) return null;
-  return Date.now() - ts;
+  const tsMs = ts < 1e12 ? ts * 1000 : ts;
+  return Date.now() - tsMs;
 }
 
 function parseMessage(data: unknown): { type?: string; msg?: { ts?: number } } | null {
