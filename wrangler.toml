@@ -4,6 +4,14 @@ compatibility_date = "2026-05-23"
 compatibility_flags = ["nodejs_compat_v2"]
 workers_dev = true
 
+[[routes]]
+pattern = "kalshistatus.dev"
+custom_domain = true
+
+[[routes]]
+pattern = "www.kalshistatus.dev"
+custom_domain = true
+
 [assets]
 directory = "./public"
 binding   = "ASSETS"
