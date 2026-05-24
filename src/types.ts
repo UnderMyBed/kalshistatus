@@ -29,11 +29,21 @@ export interface ExchangeStatus {
   trading_active: boolean;
 }
 
+export type WsChannelName = 'trade' | 'ticker_v2' | 'orderbook_delta' | 'communications';
+
+export interface WsChannelSample {
+  channel: WsChannelName;
+  msg_count: number;
+  rate_per_sec: number;
+  median_age_ms: number | null;
+}
+
 export interface WsSample {
   connected: boolean;
-  latency_ms: number | null;
-  tickers_received: number;
+  handshake_ms: number | null;
+  sample_ms: number;
   sampled_at: number;
+  channels: WsChannelSample[];
   error?: string;
 }
 

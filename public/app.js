@@ -276,21 +276,40 @@
       $wsContent.innerHTML = '<div class="ws-meta">No WebSocket data</div>';
       return;
     }
-    const sCls = ws.connected ? 'connected' : 'disconnected';
-    const sText = ws.connected ? 'connected' : 'disconnected';
-    const lText = latencyText(ws.latency_ms ?? null);
-    const lCls = latencyClass(ws.latency_ms ?? null);
     const sampledAgo = formatAge(Date.now() - (ws.sampled_at ?? Date.now()));
-    const tickersRx = escHtml(String(ws.tickers_received ?? 0));
-    const errNote = ws.error ? `<div class="error-text">${escHtml(ws.error)}</div>` : '';
-    $wsContent.innerHTML = `
-      <div class="ws-meta">sampled ${sampledAgo} ago · ${tickersRx} tickers received</div>
-      <div class="ws-row">
-        <span class="ws-channel">orderbook_delta</span>
-        <span class="ws-count">${tickersRx}</span>
-        <span class="ws-latency latency ${lCls}">${lText}</span>
-        <span class="ws-status ${sCls}">${sText}</span>
-      </div>${errNote}`;
+    const sampleSec = ws.sample_ms != null ? (ws.sample_ms / 1000).toFixed(1) + 's' : '—';
+    const handshake = ws.handshake_ms != null ? `${ws.handshake_ms}ms handshake` : null;
+    const channels = Array.isArray(ws.channels) ? ws.channels : [];
+    const connectedCount = channels.filter((c) => (c.msg_count ?? 0) > 0).length;
+
+    const metaParts = [`sampled ${sampledAgo} ago`, `${sampleSec} window`];
+    if (handshake) metaParts.push(handshake);
+    metaParts.push(`${connectedCount}/${channels.length} channels active`);
+    const meta = `<div class="ws-meta">${metaParts.map(escHtml).join(' · ')}</div>`;
+
+    const errNote = ws.error ? `<div class="error-text">error: ${escHtml(ws.error)}</div>` : '';
+
+    if (channels.length === 0) {
+      $wsContent.innerHTML = meta + errNote;
+      return;
+    }
+
+    const rows = channels.map((c) => {
+      const active = (c.msg_count ?? 0) > 0;
+      const sCls = active ? 'connected' : 'disconnected';
+      const sText = active ? `${c.msg_count} msgs` : 'silent';
+      const rate = c.rate_per_sec != null ? `${c.rate_per_sec.toFixed(1)}/s` : '—';
+      const age = c.median_age_ms != null ? latencyText(c.median_age_ms) : '—';
+      const ageCls = latencyClass(c.median_age_ms ?? null);
+      return `<div class="ws-row">
+        <span class="ws-channel">${escHtml(c.channel)}</span>
+        <span class="ws-count">${escHtml(rate)}</span>
+        <span class="ws-latency latency ${ageCls}" title="median message age">${escHtml(age)}</span>
+        <span class="ws-status ${sCls}">${escHtml(sText)}</span>
+      </div>`;
+    });
+
+    $wsContent.innerHTML = meta + rows.join('') + errNote;
   }
 
   function renderLatencyChart(snapshots) {

@@ -35,8 +35,33 @@ Probes are split by trust:
   Surfaced in the API response but do not roll up to headline status; they
   represent "can we authenticate at all," not Kalshi's public health.
 
-If `KALSHI_*_KEY_ID` or `KALSHI_*_PRIVATE_KEY` is missing, authenticated probes
-return `status: "unknown"` with `error: "no_credentials"` (never silently 401).
+If `KALSHI_*_KEY_ID` or `KALSHI_*_PRIVATE_KEY_PEM` is missing, authenticated
+probes return `status: "unknown"` with `error: "no_credentials"` (never
+silently 401).
+
+## WebSocket sampling
+
+Each fast-cron tick opens one authenticated WebSocket connection to Kalshi
+and subscribes to four channels:
+
+| Channel           | Source of truth for                                    |
+| ----------------- | ------------------------------------------------------ |
+| `trade`           | executed-trade message rate                            |
+| `ticker_v2`       | quote-update rate and freshness                        |
+| `orderbook_delta` | book-update rate (snapshot + delta types both counted) |
+| `communications`  | RFQ / official communications rate                     |
+
+The worker listens for `WS_SAMPLE_MS` (default 5 s), then closes. For each
+channel the snapshot records `msg_count`, `rate_per_sec`, and `median_age_ms`
+(median of `Date.now() - msg.msg.ts` across observed messages). The
+connection is authenticated using the same RSA-PSS signing as REST,
+with `path = /trade-api/ws/v2` (no query string). See
+[ADR-0013](adr/0013-websocket-multi-channel-sampling.md).
+
+If the upgrade fails (401, network), `ws_sample.error` carries the reason
+(`upgrade_failed_<status>`, `no_credentials`, or the thrown error message)
+and `connected = false`. The WebSocket card surfaces the error verbatim
+rather than hiding it.
 
 ## Data Flow
 

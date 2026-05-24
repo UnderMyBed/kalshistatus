@@ -160,15 +160,48 @@ components:
       properties:
         exchange_active: { type: boolean }
         trading_active: { type: boolean }
+    WsChannelSample:
+      type: object
+      required: [channel, msg_count, rate_per_sec]
+      properties:
+        channel:
+          type: string
+          enum: [trade, ticker_v2, orderbook_delta, communications]
+        msg_count: { type: integer, description: 'Messages received during the sample window' }
+        rate_per_sec: { type: number, description: 'msg_count divided by sample_ms / 1000' }
+        median_age_ms:
+          type: integer
+          nullable: true
+          description: 'Median (Date.now() - msg.msg.ts) across sampled messages on this channel, or null if none seen'
     WsSample:
       type: object
-      required: [connected, tickers_received, sampled_at]
+      required: [connected, sample_ms, sampled_at, channels]
+      description: |
+        Authenticated WebSocket sample. The worker opens one connection per
+        cron tick, subscribes to all four channels, listens for sample_ms
+        milliseconds, then closes. Per-channel rate and median message age
+        are derived from the captured messages.
       properties:
-        connected: { type: boolean }
-        latency_ms: { type: integer, nullable: true }
-        tickers_received: { type: integer }
-        sampled_at: { type: integer, format: int64 }
-        error: { type: string }
+        connected:
+          type: boolean
+          description: 'true if the WS upgrade succeeded and accept() was called'
+        handshake_ms:
+          type: integer
+          nullable: true
+          description: 'Time from fetch start to WS accept(), in ms'
+        sample_ms:
+          type: integer
+          description: 'Length of the listen window in ms'
+        sampled_at:
+          type: integer
+          format: int64
+          description: 'Unix ms when the sample began'
+        channels:
+          type: array
+          items: { $ref: '#/components/schemas/WsChannelSample' }
+        error:
+          type: string
+          description: 'Set when the sample could not run (e.g. no_credentials, upgrade_failed_401, ws_error)'
     Snapshot:
       type: object
       required: [ts, environment, status, exchange, endpoints, regions]
