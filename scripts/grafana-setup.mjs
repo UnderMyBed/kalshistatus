@@ -20,14 +20,18 @@ const dashboard = {
       title: 'Endpoint Latency (prod)',
       type: 'timeseries',
       gridPos: { h: 8, w: 12, x: 0, y: 0 },
-      targets: [{ expr: 'kalshi_endpoint_latency_ms{environment="prod"}', legendFormat: '{{endpoint}}' }],
+      targets: [
+        { expr: 'kalshi_endpoint_latency_ms{environment="prod"}', legendFormat: '{{endpoint}}' },
+      ],
     },
     {
       id: 2,
       title: 'Endpoint Latency (demo)',
       type: 'timeseries',
       gridPos: { h: 8, w: 12, x: 12, y: 0 },
-      targets: [{ expr: 'kalshi_endpoint_latency_ms{environment="demo"}', legendFormat: '{{endpoint}}' }],
+      targets: [
+        { expr: 'kalshi_endpoint_latency_ms{environment="demo"}', legendFormat: '{{endpoint}}' },
+      ],
     },
     {
       id: 3,

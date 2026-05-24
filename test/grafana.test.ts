@@ -42,8 +42,22 @@ describe('buildPrometheusPayload', () => {
     const multiSnap: Snapshot = {
       ...snap,
       endpoints: [
-        { name: 'exchange_status', url: '', method: 'GET', latency_ms: 42, status: 'up', http_status: 200 },
-        { name: 'markets', url: '', method: 'GET', latency_ms: 130, status: 'up', http_status: 200 },
+        {
+          name: 'exchange_status',
+          url: '',
+          method: 'GET',
+          latency_ms: 42,
+          status: 'up',
+          http_status: 200,
+        },
+        {
+          name: 'markets',
+          url: '',
+          method: 'GET',
+          latency_ms: 130,
+          status: 'up',
+          http_status: 200,
+        },
       ],
     };
     const payload = buildPrometheusPayload(multiSnap);
@@ -58,7 +72,10 @@ describe('pushMetrics', () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 204 }));
     await pushMetrics(snap, 'https://example.com/prom/push', '2964496', 'token123', mockFetch);
     expect(mockFetch).toHaveBeenCalledOnce();
-    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit & { headers: Record<string, string> }];
+    const [url, opts] = mockFetch.mock.calls[0] as [
+      string,
+      RequestInit & { headers: Record<string, string> },
+    ];
     expect(url).toBe('https://example.com/prom/push');
     expect(opts.method).toBe('POST');
     expect(opts.headers['Authorization']).toMatch(/^Basic /);
@@ -68,7 +85,10 @@ describe('pushMetrics', () => {
   it('encodes credentials as base64', async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 204 }));
     await pushMetrics(snap, 'https://example.com/prom/push', 'myInstance', 'myToken', mockFetch);
-    const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit & { headers: Record<string, string> }];
+    const [, opts] = mockFetch.mock.calls[0] as [
+      string,
+      RequestInit & { headers: Record<string, string> },
+    ];
     const encoded = opts.headers['Authorization'].replace('Basic ', '');
     expect(atob(encoded)).toBe('myInstance:myToken');
   });
@@ -76,7 +96,10 @@ describe('pushMetrics', () => {
   it('sends the Prometheus payload as body', async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response('', { status: 204 }));
     await pushMetrics(snap, 'https://example.com/prom/push', 'id', 'tok', mockFetch);
-    const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit & { headers: Record<string, string> }];
+    const [, opts] = mockFetch.mock.calls[0] as [
+      string,
+      RequestInit & { headers: Record<string, string> },
+    ];
     expect(typeof opts.body).toBe('string');
     expect(opts.body as string).toContain('kalshi_endpoint_latency_ms');
   });
