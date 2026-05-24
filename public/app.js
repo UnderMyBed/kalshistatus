@@ -7,17 +7,15 @@
   const ENV_KEY = 'kalshi_env';
   const THEMES = ['auto', 'light', 'dark'];
 
-  // ── State ─────────────────────────────────────────────────────────────────
   let currentEnv = 'prod';
   let currentSnapshot = null;
   let historyMode = false;
   let historyTs = null;
-  let historyList = []; // sorted ascending by ts
+  let historyList = [];
   let historyListEnv = null;
   let pollTimer = null;
-  const sparkBuffers = new Map(); // endpoint name → number[] (max SPARKLINE_SIZE)
+  const sparkBuffers = new Map();
 
-  // ── DOM refs ──────────────────────────────────────────────────────────────
   const $ = (id) => document.getElementById(id);
   const $wordmarkDot = $('wordmark-dot');
   const $themeToggle = $('theme-toggle');
@@ -34,6 +32,7 @@
   const $changelogBody = $('changelog-body');
   const $endpointsHeader = $('endpoints-header');
   const $endpointsBody = $('endpoints-body');
+  const $regionsContent = $('regions-content');
   const $wsContent = $('ws-content');
   const $histPrev = $('hist-prev');
   const $histTs = $('hist-ts');
@@ -41,7 +40,6 @@
   const $histLive = $('hist-live');
   const $footerVersion = $('footer-version');
 
-  // ── Theme ─────────────────────────────────────────────────────────────────
   function getTheme() {
     return localStorage.getItem(THEME_KEY) || 'auto';
   }
@@ -56,7 +54,6 @@
     setTheme(next);
   }
 
-  // ── Env ───────────────────────────────────────────────────────────────────
   function initEnv() {
     const urlEnv = new URL(location.href).searchParams.get('env');
     currentEnv =
@@ -71,10 +68,9 @@
     historyList = [];
     historyListEnv = null;
     sparkBuffers.clear();
-    if (historyMode) {
-      exitHistory(false);
-    }
+    if (historyMode) exitHistory(false);
     fetchAndRender();
+    fetchChangelog();
     updateTitle();
   }
   function updateEnvButtons() {
@@ -82,14 +78,12 @@
     $envDemo.classList.toggle('active', currentEnv === 'demo');
   }
 
-  // ── Title ─────────────────────────────────────────────────────────────────
   function updateTitle() {
     const envTag = currentEnv === 'demo' ? ' [demo]' : '';
     const histTag = historyMode ? ' [history]' : '';
     document.title = `kalshistatus.dev${envTag}${histTag} — Kalshi API status`;
   }
 
-  // ── Latency helpers ───────────────────────────────────────────────────────
   function latencyClass(ms) {
     if (ms == null) return 'none';
     if (ms < 500) return 'fast';
@@ -111,8 +105,15 @@
       (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
     );
   }
+  function endpointPath(ep) {
+    try {
+      const u = new URL(ep.url);
+      return u.pathname + u.search;
+    } catch {
+      return ep.url || '';
+    }
+  }
 
-  // ── Sparkline ring buffer ─────────────────────────────────────────────────
   function pushSparkline(key, ms) {
     if (!sparkBuffers.has(key)) sparkBuffers.set(key, []);
     const buf = sparkBuffers.get(key);
@@ -141,7 +142,6 @@
       .join('');
   }
 
-  // ── Render: status banner ─────────────────────────────────────────────────
   function renderStatus(snap) {
     const status = snap?.status ?? 'unknown';
     $wordmarkDot.className = `wordmark-dot ${status}`;
@@ -153,12 +153,7 @@
     $bannerCron.textContent = historyMode ? 'snapshot view' : 'polling every 15s';
   }
 
-  // ── Render: exchange ──────────────────────────────────────────────────────
   function renderExchange(snap) {
-    if (!snap) {
-      $exchangeContent.innerHTML = '<div class="loading-text">Loading…</div>';
-      return;
-    }
     const ex = snap.exchange ?? {};
     const pills = [
       { label: 'exchange', val: ex.exchange_active },
@@ -171,50 +166,76 @@
     $exchangeContent.innerHTML = `<div class="exchange-indicators">${pills.join('')}</div>`;
   }
 
-  // ── Render: endpoints ─────────────────────────────────────────────────────
   function renderEndpoints(snap) {
-    if (!snap) {
-      $endpointsBody.innerHTML = '<div class="loading-text">Loading…</div>';
-      return;
-    }
     const endpoints = snap.endpoints ?? [];
     if (!endpoints.length) {
       $endpointsBody.innerHTML = '<div class="loading-text">No endpoint data</div>';
       return;
     }
-    for (const ep of endpoints) {
-      pushSparkline(ep.name, ep.latency_ms ?? null);
-    }
-    const rows = endpoints.map((ep) => {
+    for (const ep of endpoints) pushSparkline(ep.name, ep.latency_ms ?? null);
+
+    const groups = [
+      { title: 'Public', filter: (ep) => !ep.requires_auth },
+      { title: 'Authenticated', filter: (ep) => ep.requires_auth },
+    ];
+
+    const rowHtml = (ep) => {
       const buf = sparkBuffers.get(ep.name) ?? [];
       const lCls = latencyClass(ep.latency_ms ?? null);
       const lText = latencyText(ep.latency_ms ?? null);
-      const sCls =
-        ep.status === 'up'
-          ? 'up'
-          : ep.status === 'degraded'
-            ? 'degraded'
-            : ep.status === 'down'
-              ? 'down'
-              : 'unknown';
-      const sText = ep.status ?? '?';
+      const sCls = ['up', 'degraded', 'down', 'unknown'].includes(ep.status)
+        ? ep.status
+        : 'unknown';
+      const noteHtml = ep.error ? `<div class="endpoint-error">${escHtml(ep.error)}</div>` : '';
       return `<div class="endpoint-row">
         <span class="endpoint-name">${escHtml(ep.name)}</span>
-        <span class="endpoint-path">${escHtml(ep.path ?? '')}</span>
+        <span class="endpoint-path" title="${escHtml(ep.url)}">${escHtml(endpointPath(ep))}</span>
         <div class="sparkline">${renderSparklineHTML(buf)}</div>
         <span class="latency ${lCls}">${lText}</span>
-        <span class="endpoint-status ${sCls}">${escHtml(sText)}</span>
-      </div>`;
-    });
-    $endpointsBody.innerHTML = rows.join('');
+        <span class="endpoint-status ${sCls}">${escHtml(ep.status ?? '?')}</span>
+      </div>${noteHtml}`;
+    };
+
+    const html = groups
+      .map((g) => {
+        const rows = endpoints.filter(g.filter).map(rowHtml).join('');
+        if (!rows) return '';
+        return `<div class="endpoint-group"><div class="endpoint-group-title">${g.title}</div>${rows}</div>`;
+      })
+      .join('');
+    $endpointsBody.innerHTML = html;
   }
 
-  // ── Render: WebSocket ─────────────────────────────────────────────────────
-  function renderWs(snap) {
-    if (!snap) {
-      $wsContent.innerHTML = '<div class="loading-text">Loading…</div>';
+  function renderRegions(snap) {
+    const regions = snap.regions ?? [];
+    if (!regions.length) {
+      $regionsContent.innerHTML =
+        '<div class="ws-meta">No recent regional probes yet — best-effort sampling from request traffic.</div>';
       return;
     }
+    const rows = regions.map((r) => {
+      const ageMs = Date.now() - (r.probed_at ?? Date.now());
+      const eps = (r.endpoints ?? []).filter((ep) => !ep.requires_auth);
+      const upCount = eps.filter((ep) => ep.status === 'up').length;
+      const avgLatency = eps.length
+        ? Math.round(
+            eps.reduce((s, ep) => s + (ep.latency_ms ?? 0), 0) /
+              Math.max(1, eps.filter((ep) => ep.latency_ms != null).length),
+          )
+        : null;
+      const cls = upCount === eps.length && eps.length > 0 ? 'connected' : 'disconnected';
+      const latencyStr = avgLatency != null ? latencyText(avgLatency) : '—';
+      return `<div class="ws-row">
+        <span class="ws-channel">${escHtml(r.region)}</span>
+        <span class="ws-count">${escHtml(`${upCount}/${eps.length}`)} up</span>
+        <span class="ws-latency latency ${latencyClass(avgLatency)}">${latencyStr}</span>
+        <span class="ws-status ${cls}">${formatAge(ageMs)} ago</span>
+      </div>`;
+    });
+    $regionsContent.innerHTML = rows.join('');
+  }
+
+  function renderWs(snap) {
     const ws = snap.ws_sample;
     if (!ws) {
       $wsContent.innerHTML = '<div class="ws-meta">No WebSocket data</div>';
@@ -237,36 +258,47 @@
       </div>${errNote}`;
   }
 
-  // ── Render: changelog (future data source) ────────────────────────────────
-  function renderChangelog() {
-    if ($changelogBody.dataset.loaded) return;
-    $changelogBody.innerHTML = '<div class="loading-text">No changelog entries yet</div>';
-    $changelogBody.dataset.loaded = '1';
+  async function fetchChangelog() {
+    const res = await fetch(`/api/changelog?env=${currentEnv}&limit=20`);
+    if (!res.ok) {
+      $changelogBody.innerHTML = '<div class="error-text">Failed to load changelog</div>';
+      return;
+    }
+    const entries = await res.json();
+    if (!Array.isArray(entries) || entries.length === 0) {
+      $changelogBody.innerHTML = '<div class="loading-text">No changelog entries yet</div>';
+      return;
+    }
+    const items = entries.map((e) => {
+      const date = new Date(e.pub_date_ts).toISOString().slice(0, 10);
+      return `<div class="changelog-item">
+        <div class="changelog-title">
+          <a href="${escHtml(e.link)}" target="_blank" rel="noopener noreferrer">${escHtml(e.title)}</a>
+        </div>
+        <div class="changelog-summary">${escHtml(e.summary_ai)}</div>
+        <div class="changelog-meta">${date}</div>
+      </div>`;
+    });
+    $changelogBody.innerHTML = items.join('');
   }
 
-  // ── Render all ────────────────────────────────────────────────────────────
   function renderAll(snap) {
     currentSnapshot = snap;
     renderStatus(snap);
     renderExchange(snap);
     renderEndpoints(snap);
+    renderRegions(snap);
     renderWs(snap);
-    renderChangelog();
     updateHistoryControls();
   }
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
   async function fetchSnapshot(ts) {
     let url = `/api/status?env=${currentEnv}`;
     if (ts != null) url += `&at=${ts}`;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data.error ? null : data;
-    } catch {
-      return null;
-    }
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.error ? null : data;
   }
 
   async function fetchAndRender() {
@@ -274,7 +306,6 @@
     if (snap) renderAll(snap);
   }
 
-  // ── Polling ───────────────────────────────────────────────────────────────
   function startPolling() {
     stopPolling();
     pollTimer = setInterval(fetchAndRender, POLL_INTERVAL);
@@ -286,21 +317,15 @@
     }
   }
 
-  // ── History list ──────────────────────────────────────────────────────────
   async function ensureHistoryList() {
     if (historyListEnv === currentEnv && historyList.length > 0) return;
-    try {
-      const res = await fetch(`/api/history?env=${currentEnv}&limit=1440`);
-      if (!res.ok) return;
-      const list = await res.json();
-      historyList = list.map((s) => s.ts).sort((a, b) => a - b);
-      historyListEnv = currentEnv;
-    } catch {
-      /* ignore */
-    }
+    const res = await fetch(`/api/history?env=${currentEnv}&limit=1440`);
+    if (!res.ok) return;
+    const list = await res.json();
+    historyList = list.map((s) => s.ts).sort((a, b) => a - b);
+    historyListEnv = currentEnv;
   }
 
-  // ── History navigation ────────────────────────────────────────────────────
   function enterHistory(ts) {
     historyMode = true;
     historyTs = ts;
@@ -312,7 +337,7 @@
     fetchAndRender();
   }
 
-  function exitHistory(fetch = true) {
+  function exitHistory(refetch = true) {
     historyMode = false;
     historyTs = null;
     $historyBar.classList.remove('active');
@@ -325,7 +350,7 @@
     url.searchParams.delete('at');
     history.replaceState(null, '', url);
     startPolling();
-    if (fetch) fetchAndRender();
+    if (refetch) fetchAndRender();
   }
 
   function updateHistoryControls() {
@@ -350,7 +375,6 @@
     await ensureHistoryList();
 
     if (!historyMode) {
-      // Enter history: find the latest snapshot before current time
       const ref = currentSnapshot?.ts ?? Date.now();
       let ts = null;
       for (let i = historyList.length - 1; i >= 0; i--) {
@@ -384,7 +408,6 @@
     fetchAndRender();
   }
 
-  // ── Collapsibles ──────────────────────────────────────────────────────────
   function initCollapsible(header, body, startOpen) {
     const card = header.closest('.card');
     function applyState(open) {
@@ -405,22 +428,16 @@
     });
   }
 
-  // ── Footer version ────────────────────────────────────────────────────────
   async function fetchVersion() {
-    try {
-      const res = await fetch('/api/version');
-      if (!res.ok) return;
-      const data = await res.json();
-      const parts = [];
-      if (data.version) parts.push(`v${data.version}`);
-      if (data.sha) parts.push(`@${String(data.sha).slice(0, 7)}`);
-      if (parts.length) $footerVersion.textContent = parts.join(' · ');
-    } catch {
-      /* ignore */
-    }
+    const res = await fetch('/api/version');
+    if (!res.ok) return;
+    const data = await res.json();
+    const parts = [];
+    if (data.version) parts.push(`v${data.version}`);
+    if (data.commit) parts.push(`@${String(data.commit).slice(0, 7)}`);
+    if (parts.length) $footerVersion.textContent = parts.join(' · ');
   }
 
-  // ── Init ──────────────────────────────────────────────────────────────────
   function init() {
     setTheme(getTheme());
     $themeToggle.addEventListener('click', cycleTheme);
@@ -455,7 +472,6 @@
       if (e.key === 'ArrowRight' && historyMode) navHistory('next');
     });
 
-    // Check for ?at= in URL on load
     const atParam = new URL(location.href).searchParams.get('at');
     if (atParam) {
       const ts = parseInt(atParam, 10);
@@ -469,6 +485,7 @@
     }
 
     fetchAndRender();
+    fetchChangelog();
     if (!historyMode) startPolling();
     fetchVersion();
     updateTitle();

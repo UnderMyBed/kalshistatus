@@ -9,13 +9,23 @@
       content="Real-time status &amp; performance for the Kalshi API. For the engineers shipping against it."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" href="/fonts/Inter-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link
+      rel="preload"
+      href="/fonts/JetBrainsMono-var.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <meta property="og:title" content="kalshistatus.dev" />
     <meta
       property="og:description"
       content="Real-time status &amp; performance for the Kalshi API. For the engineers shipping against it."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://kalshistatus.dev/og.svg" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://kalshistatus.dev/og.svg" />
     <link rel="alternate" type="application/rss+xml" href="/feed.xml" />
     <style>
       @font-face {
@@ -463,6 +473,28 @@
         color: var(--status-unknown);
       }
 
+      /* ── Endpoint groups ─────────────────────────────── */
+      .endpoint-group {
+        border-bottom: 1px solid var(--border);
+      }
+      .endpoint-group:last-child {
+        border-bottom: none;
+      }
+      .endpoint-group-title {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--fg-subtle);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 8px 16px 4px;
+      }
+      .endpoint-error {
+        padding: 0 16px 6px 16px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--fg-subtle);
+      }
+
       /* ── WebSocket section ───────────────────────────── */
       .ws-content {
         padding: 12px 16px;
@@ -697,7 +729,6 @@
             <button class="env-btn active" id="env-prod" data-env="prod">prod</button>
             <button class="env-btn" id="env-demo" data-env="demo">demo</button>
           </div>
-          <a class="compare-link" href="/compare">compare →</a>
         </div>
       </div>
     </header>
@@ -741,6 +772,24 @@
             <span class="collapse-arrow" aria-hidden="true">▾</span>
           </div>
           <div class="section-body hidden changelog-list" id="changelog-body">
+            <div class="loading-text">Loading…</div>
+          </div>
+        </section>
+
+        <noscript>
+          <section class="card" aria-label="JavaScript required">
+            <div class="loading-text">
+              This dashboard renders live data via JavaScript. The raw API is
+              <a href="/api/status?env=prod">/api/status?env=prod</a> — same shape, no JS required.
+            </div>
+          </section>
+        </noscript>
+
+        <section class="card" id="section-regions" aria-label="Regions">
+          <div class="section-header">
+            <h2>Regions</h2>
+          </div>
+          <div class="ws-content" id="regions-content">
             <div class="loading-text">Loading…</div>
           </div>
         </section>
