@@ -23,7 +23,7 @@ describe('coloToRegion', () => {
   it('maps HKG to asia', () => expect(coloToRegion('HKG')).toBe('asia'));
   it('maps ICN to asia', () => expect(coloToRegion('ICN')).toBe('asia'));
 
-  it('returns null for unknown colo', () => expect(coloToRegion('SFO')).toBeNull());
+  it('returns null for unknown colo', () => expect(coloToRegion('ZZZ')).toBeNull());
   it('returns null for empty string', () => expect(coloToRegion('')).toBeNull());
 });
 
@@ -42,7 +42,7 @@ describe('detectRegion', () => {
   });
 
   it('returns null when colo is not in the known set', async () => {
-    const mockFetch = vi.fn().mockResolvedValue(new Response('colo=SFO\n'));
+    const mockFetch = vi.fn().mockResolvedValue(new Response('colo=ZZZ\n'));
     const region = await detectRegion(mockFetch);
     expect(region).toBeNull();
   });

@@ -1,6 +1,6 @@
-import type { Env, Environment } from './types';
+import type { Env } from './types';
 import { runFastCron, runSlowCron } from './cron';
-import { handleApiStatus, handleApiHistory, handleBadge } from './api';
+import { handleApiStatus, handleApiHistory, handleBadge, parseEnvironment } from './api';
 import { CostController } from './cost-control';
 import { handleGrafanaInit } from './grafana-init';
 import { coloToRegion } from './regions';
@@ -36,7 +36,7 @@ export default {
       if (colo) {
         const region = coloToRegion(colo);
         if (region) {
-          const environment: Environment = url.searchParams.get('env') === 'demo' ? 'demo' : 'prod';
+          const environment = parseEnvironment(url);
           ctx.waitUntil(
             saveRegionProbePresence(env.DB, environment, {
               region,
