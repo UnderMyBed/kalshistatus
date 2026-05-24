@@ -1,15 +1,27 @@
 import type { Env } from './types';
 import { runFastCron, runSlowCron } from './cron';
+import { handleApiStatus, handleApiHistory, handleBadge } from './api';
 
 export default {
-  async fetch(request: Request, _env: Env, _ctx: ExecutionContext): Promise<Response> {
-    const url = new URL(request.url);
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+    const { pathname } = new URL(request.url);
 
-    if (url.pathname === '/healthz') {
-      return Response.json({ ok: true, ts: Date.now() });
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        },
+      });
     }
 
-    return new Response('Not Found', { status: 404 });
+    if (pathname === '/healthz') return Response.json({ ok: true, ts: Date.now() });
+    if (pathname === '/api/status') return handleApiStatus(request, env);
+    if (pathname === '/api/history') return handleApiHistory(request, env);
+    if (pathname === '/badge.svg') return handleBadge(request, env);
+
+    return env.ASSETS.fetch(request);
   },
 
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
