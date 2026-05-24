@@ -21,6 +21,7 @@ beforeEach(async () => {
   await env.DB.exec(SCHEMA_SNAPSHOTS);
   await env.DB.exec(SCHEMA_CHANGELOG);
   await env.DB.prepare('DELETE FROM changelog_summaries').run();
+  vi.spyOn(env.AI, 'run').mockResolvedValue({ response: 'One-sentence AI summary.' } as never);
 });
 
 describe('fetchAndSummarizeChangelog', () => {
@@ -80,8 +81,7 @@ describe('fetchAndSummarizeChangelog', () => {
       ),
     );
 
-    const aiRunSpy = vi.spyOn(env.AI, 'run');
     await fetchAndSummarizeChangelog(env, mockFetch);
-    expect(aiRunSpy).not.toHaveBeenCalled();
+    expect(env.AI.run).not.toHaveBeenCalled();
   });
 });
