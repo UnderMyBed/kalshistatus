@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/UnderMyBed/kalshistatus/compare/v1.2.0...v1.2.1) (2026-05-24)
+
+
+### Bug Fixes
+
+* **ci:** ignore CHANGELOG.md in prettier check ([#37](https://github.com/UnderMyBed/kalshistatus/issues/37)) ([d07aa78](https://github.com/UnderMyBed/kalshistatus/commit/d07aa78c514ae3b3f8f5812ff42b490cda3586d5))
+
 ## [1.2.0](https://github.com/UnderMyBed/kalshistatus/compare/v1.1.0...v1.2.0) (2026-05-24)
 
 
