@@ -31,6 +31,22 @@ export async function readSnapshotHistory(
   return rows.results.map((r) => JSON.parse(r.payload) as Snapshot);
 }
 
+export async function readSnapshotAt(
+  db: D1Database,
+  environment: Environment,
+  ts: number,
+): Promise<Snapshot | null> {
+  const tolerance = 5 * 60 * 1000;
+  const row = await db
+    .prepare(
+      `SELECT payload FROM snapshots WHERE environment = ? AND ts BETWEEN ? AND ? ORDER BY ABS(ts - ?) ASC LIMIT 1`,
+    )
+    .bind(environment, ts - tolerance, ts + tolerance, ts)
+    .first<{ payload: string }>();
+  if (!row) return null;
+  return JSON.parse(row.payload) as Snapshot;
+}
+
 export async function pruneSnapshots(
   db: D1Database,
   nowMs: number,

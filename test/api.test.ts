@@ -106,6 +106,28 @@ describe('GET /badge.svg', () => {
   });
 });
 
+describe('GET /api/status?at=', () => {
+  it('returns snapshot closest to requested timestamp from D1', async () => {
+    const ts = 1_700_000_000_000;
+    const snap = makeSnap({ ts });
+    await saveSnapshot(env.DB, snap);
+    const res = await SELF.fetch(`https://example.com/api/status?env=prod&at=${ts}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Snapshot;
+    expect(body.ts).toBe(ts);
+  });
+
+  it('returns 404 when no snapshot within 5 min of requested ts', async () => {
+    const ts = 1_700_000_000_000;
+    await saveSnapshot(env.DB, makeSnap({ ts }));
+    const farTs = ts + 10 * 60 * 1000;
+    const res = await SELF.fetch(`https://example.com/api/status?env=prod&at=${farTs}`);
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('Snapshot not found');
+  });
+});
+
 describe('OPTIONS preflight', () => {
   it('returns 204 with CORS header', async () => {
     const res = await SELF.fetch('https://example.com/api/status', { method: 'OPTIONS' });

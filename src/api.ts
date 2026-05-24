@@ -1,6 +1,6 @@
 import type { Env, Environment } from './types';
 import { readLatestSnapshot } from './kv';
-import { readSnapshotHistory } from './storage';
+import { readSnapshotHistory, readSnapshotAt } from './storage';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -20,7 +20,26 @@ export async function handleApiStatus(request: Request, env: Env): Promise<Respo
   if (request.method !== 'GET') {
     return new Response('Method Not Allowed', { status: 405, headers: CORS });
   }
-  const environment = parseEnvironment(new URL(request.url));
+  const url = new URL(request.url);
+  const environment = parseEnvironment(url);
+
+  const atParam = url.searchParams.get('at');
+  if (atParam !== null) {
+    if (!/^\d+$/.test(atParam)) {
+      return Response.json({ error: 'Invalid timestamp' }, { status: 400, headers: CORS });
+    }
+    const ts = parseInt(atParam, 10);
+    if (!Number.isFinite(ts) || ts <= 0) {
+      return Response.json({ error: 'Invalid timestamp' }, { status: 400, headers: CORS });
+    }
+    const snapshot = await readSnapshotAt(env.DB, environment, ts);
+    if (!snapshot) {
+      return Response.json({ error: 'Snapshot not found' }, { status: 404, headers: CORS });
+    }
+    return Response.json(snapshot, {
+      headers: { ...CORS, 'Cache-Control': 'public, max-age=300' },
+    });
+  }
 
   const snapshot = await readLatestSnapshot(env.KALSHI_KV, environment);
   if (!snapshot) {
