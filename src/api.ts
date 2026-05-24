@@ -7,7 +7,7 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
 
-function parseEnvironment(url: URL): Environment {
+export function parseEnvironment(url: URL): Environment {
   return url.searchParams.get('env') === 'demo' ? 'demo' : 'prod';
 }
 
