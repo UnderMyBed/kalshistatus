@@ -95,7 +95,7 @@ describe('fetch handler — region probe from request cf.colo', () => {
     await writeSnapshotIfChanged(env.KALSHI_KV, snap);
 
     const req = new Request('https://example.com/api/status?env=prod');
-    Object.defineProperty(req, 'cf', { value: { colo: 'SFO' }, configurable: true });
+    Object.defineProperty(req, 'cf', { value: { colo: 'ZZZ' }, configurable: true });
     const ctx = createExecutionContext();
     await worker.fetch(req, env, ctx);
     await waitOnExecutionContext(ctx);

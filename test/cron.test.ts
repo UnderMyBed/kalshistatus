@@ -4,7 +4,7 @@ import { runFastCron, runSlowCron } from '../src/cron';
 
 const TRACE_IAD = 'fl=1\ncolo=IAD\n';
 const TRACE_LHR = 'fl=1\ncolo=LHR\n';
-const TRACE_UNKNOWN = 'fl=1\ncolo=SFO\n';
+const TRACE_UNKNOWN = 'fl=1\ncolo=ZZZ\n';
 
 function makeMockFetch(status = 200, traceBody = TRACE_UNKNOWN) {
   return vi.fn().mockImplementation((url: string) => {
