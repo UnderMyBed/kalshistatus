@@ -38,7 +38,8 @@ export default {
     if (event.cron === '0 * * * *') {
       ctx.waitUntil(runSlowCron(env));
     } else {
-      ctx.waitUntil(runFastCron(env));
+      const mode = await new CostController(env.KALSHI_KV).getMode();
+      if (mode !== 'blocked') ctx.waitUntil(runFastCron(env));
     }
   },
 };

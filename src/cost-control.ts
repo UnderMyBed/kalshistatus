@@ -26,6 +26,13 @@ export class CostController {
   }
 
   async check(): Promise<CheckResult> {
+    const today = new Date().toISOString().slice(0, 10);
+    if (this.loaded && this.inMemoryDay !== today) {
+      this.loaded = false;
+      this.inMemoryCount = 0;
+      this.inMemoryDay = today;
+    }
+
     await this.load();
     this.inMemoryCount++;
 
@@ -34,12 +41,24 @@ export class CostController {
     }
 
     if (this.inMemoryCount >= HARD_THRESHOLD) {
+      await this.persist();
       return { allow: false, mode: 'blocked' };
     }
     if (this.inMemoryCount >= SOFT_THRESHOLD) {
       return { allow: true, mode: 'shed' };
     }
     return { allow: true, mode: 'normal' };
+  }
+
+  async getMode(): Promise<CostMode> {
+    const today = new Date().toISOString().slice(0, 10);
+    const raw = await this.kv.get(KV_KEY);
+    if (!raw) return 'normal';
+    const state: CounterState = JSON.parse(raw);
+    if (state.day !== today) return 'normal';
+    if (state.count >= HARD_THRESHOLD) return 'blocked';
+    if (state.count >= SOFT_THRESHOLD) return 'shed';
+    return 'normal';
   }
 
   private async load(): Promise<void> {
