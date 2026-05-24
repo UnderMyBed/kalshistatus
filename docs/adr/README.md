@@ -34,3 +34,4 @@ from this index.
 | 10  | [Edge caching + region-probe history](0010-edge-caching-and-region-history.md) | Accepted             |
 | 11  | [Uptime metrics + latency chart](0011-uptime-metrics-and-latency-chart.md)     | Accepted             |
 | 12  | [Cost counter Durable Object](0012-cost-counter-durable-object.md)             | Accepted             |
+| 13  | [WebSocket multi-channel sampling](0013-websocket-multi-channel-sampling.md)   | Accepted             |
