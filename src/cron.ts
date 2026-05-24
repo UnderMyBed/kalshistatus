@@ -3,6 +3,7 @@ import { getEndpointDefs, buildAuthHeaders, probeEndpoint } from './kalshi-clien
 import { determineStatus, extractExchangeStatus } from './status';
 import { saveSnapshot, pruneSnapshots } from './storage';
 import { writeSnapshotIfChanged } from './kv';
+import { fetchAndSummarizeChangelog } from './changelog';
 
 async function probeEnvironment(
   env: Env,
@@ -57,4 +58,5 @@ export async function runFastCron(env: Env, fetchFn: typeof fetch = fetch): Prom
 export async function runSlowCron(env: Env): Promise<void> {
   const retentionDays = parseInt(env.SNAPSHOT_RETENTION_DAYS, 10) || 90;
   await pruneSnapshots(env.DB, Date.now(), retentionDays);
+  await fetchAndSummarizeChangelog(env);
 }
