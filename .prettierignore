@@ -1,0 +1,7 @@
+CHANGELOG.md
+node_modules
+dist
+.wrangler
+coverage
+package-lock.json
+public/openapi.yaml
