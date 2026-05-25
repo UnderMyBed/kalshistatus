@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.0](https://github.com/UnderMyBed/kalshistatus/compare/v1.2.1...v1.3.0) (2026-05-25)
+
+
+### Features
+
+* **ui:** interactive sparkline with hover tooltips and aria labels ([#44](https://github.com/UnderMyBed/kalshistatus/issues/44)) ([e2615f7](https://github.com/UnderMyBed/kalshistatus/commit/e2615f734b4bd02714e63be4e96d2298d1f0660f))
+
+
+### Bug Fixes
+
+* **auth:** correct kalshi private key secret env var names ([#39](https://github.com/UnderMyBed/kalshistatus/issues/39)) ([e7c42fc](https://github.com/UnderMyBed/kalshistatus/commit/e7c42fcf177c7f42989ca753ca5b21b041bdf16e))
+* **auth:** tolerant PEM parser + isolated auth-build errors ([#42](https://github.com/UnderMyBed/kalshistatus/issues/42)) ([e1dc4ca](https://github.com/UnderMyBed/kalshistatus/commit/e1dc4ca9c173d5406d4a190234f6a1b9d658dbc8))
+* **ws:** authenticate WebSocket and sample four channels ([#41](https://github.com/UnderMyBed/kalshistatus/issues/41)) ([936172a](https://github.com/UnderMyBed/kalshistatus/commit/936172aecf95558023f7fb5fbc021867e5f03498))
+* **ws:** treat msg.ts as seconds when smaller than 1e12 ([#45](https://github.com/UnderMyBed/kalshistatus/issues/45)) ([a4d4e25](https://github.com/UnderMyBed/kalshistatus/commit/a4d4e25dbd25ec2d5c38de603fd56ece16b30eac))
+
 ## [1.2.1](https://github.com/UnderMyBed/kalshistatus/compare/v1.2.0...v1.2.1) (2026-05-24)
 
 
