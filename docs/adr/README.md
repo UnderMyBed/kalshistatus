@@ -35,3 +35,4 @@ from this index.
 | 11  | [Uptime metrics + latency chart](0011-uptime-metrics-and-latency-chart.md)     | Accepted             |
 | 12  | [Cost counter Durable Object](0012-cost-counter-durable-object.md)             | Accepted             |
 | 13  | [WebSocket multi-channel sampling](0013-websocket-multi-channel-sampling.md)   | Accepted             |
+| 14  | [Decommission production stack](0014-decommission-stack.md)                    | Accepted             |

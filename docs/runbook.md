@@ -1,5 +1,12 @@
 # Runbook
 
+> **DECOMMISSIONED (2026-05-24).** The production stack has been torn down
+> pending a re-architecture — see [ADR-14](adr/0014-decommission-stack.md).
+> The Worker, D1 database, and KV namespace no longer exist, and
+> `deploy.yml` has been removed. Every procedure below assumes a live
+> deployment and is **inert** until a new stack is stood up. Treat this
+> file as reference for the prior design, not current operations.
+
 Operations for kalshistatus.dev. Update this file in the same commit
 as any behavior change.
 
