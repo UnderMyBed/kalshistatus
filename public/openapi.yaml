@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: kalshistatus.dev
-  version: '1.0'
+  version: '2.0'
   description: |
-    Public REST API for kalshistatus.dev — real-time status snapshots and
-    historical data for the Kalshi prediction-market API.
+    Public REST API for kalshistatus.dev — status snapshots, uptime windows,
+    and latency history for the Kalshi prediction-market API.
 
     Unauthenticated. CORS-permissive (`Access-Control-Allow-Origin: *`).
     Cached at the edge with short TTLs.
@@ -32,61 +32,103 @@ paths:
 
   /api/status:
     get:
-      summary: Latest snapshot (or snapshot at given timestamp)
-      parameters:
-        - in: query
-          name: env
-          schema: { type: string, enum: [prod, demo], default: prod }
-        - in: query
-          name: at
-          required: false
-          schema: { type: integer, format: int64 }
-          description: Unix ms; returns the snapshot closest to this time within ±5 min.
+      summary: Latest status snapshot
       responses:
-        '200': { $ref: '#/components/responses/Snapshot' }
-        '404': { description: No snapshot in window }
+        '200':
+          description: Current status snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ts, status, exchange, endpoints, uptime]
+                properties:
+                  ts: { type: integer, format: int64 }
+                  status:
+                    type: string
+                    enum: [operational, degraded, partial_outage, major_outage, unknown]
+                  exchange:
+                    type: object
+                    required: [exchange_active, trading_active]
+                    properties:
+                      exchange_active: { type: boolean }
+                      trading_active: { type: boolean }
+                  endpoints:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, url, method, status]
+                      properties:
+                        name: { type: string }
+                        url: { type: string, format: uri }
+                        method: { type: string }
+                        latency_ms: { type: integer, nullable: true }
+                        status: { type: string, enum: [up, down, degraded, unknown] }
+                        http_status: { type: integer, nullable: true }
+                        error: { type: string }
+                  uptime:
+                    type: object
+                    properties:
+                      24h:
+                        $ref: '#/components/schemas/UptimeWindow'
+                      7d:
+                        $ref: '#/components/schemas/UptimeWindow'
+                      30d:
+                        $ref: '#/components/schemas/UptimeWindow'
+        '404':
+          description: No data available
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error: { type: string, enum: [no_data] }
 
   /api/history:
     get:
-      summary: Recent snapshots, newest first
+      summary: Latency time series for a given window
       parameters:
         - in: query
-          name: env
-          schema: { type: string, enum: [prod, demo], default: prod }
-        - in: query
-          name: limit
-          schema: { type: integer, minimum: 1, maximum: 1440, default: 60 }
+          name: window
+          required: false
+          schema: { type: string, enum: [24h, 7d, 30d], default: 24h }
+          description: Time window for the series
       responses:
         '200':
-          description: Array of snapshots
+          description: Latency series
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Snapshot' }
+                type: object
+                required: [window, series]
+                properties:
+                  window: { type: string }
+                  series:
+                    type: array
+                    items:
+                      type: object
+                      required: [ts]
+                      properties:
+                        ts: { type: integer, format: int64 }
+                        latency_ms: { type: integer, nullable: true }
+        '400':
+          description: Invalid window parameter
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error: { type: string, enum: [invalid_window] }
 
-  /api/changelog:
+  /badge.svg:
     get:
-      summary: AI-summarized Kalshi changelog entries
-      parameters:
-        - in: query
-          name: limit
-          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      summary: SVG status badge for embedding
       responses:
         '200':
-          description: Recent summaries
+          description: SVG badge
           content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  required: [link, title, summary_ai, pub_date_ts]
-                  properties:
-                    link: { type: string, format: uri }
-                    title: { type: string }
-                    summary_ai: { type: string }
-                    pub_date_ts: { type: integer, format: int64 }
+            image/svg+xml: {}
 
   /api/version:
     get:
@@ -98,123 +140,17 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [version]
+                required: [version, commit]
                 properties:
                   version: { type: string }
                   commit: { type: string }
 
-  /badge.svg:
-    get:
-      summary: SVG status badge for embedding
-      parameters:
-        - in: query
-          name: env
-          schema: { type: string, enum: [prod, demo], default: prod }
-      responses:
-        '200':
-          description: SVG badge
-          content:
-            image/svg+xml: {}
-
-  /feed.xml:
-    get:
-      summary: RSS 2.0 feed of changelog + incidents
-      responses:
-        '200':
-          description: RSS XML
-          content:
-            application/rss+xml: {}
-
 components:
-  responses:
-    Snapshot:
-      description: Status snapshot
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Snapshot' }
   schemas:
-    EndpointProbe:
+    UptimeWindow:
       type: object
-      required: [name, url, method, status, requires_auth]
+      required: [pct, ok_count, total_count]
       properties:
-        name: { type: string }
-        url: { type: string, format: uri }
-        method: { type: string }
-        latency_ms: { type: integer, nullable: true }
-        status: { type: string, enum: [up, down, degraded, unknown] }
-        http_status: { type: integer, nullable: true }
-        requires_auth: { type: boolean }
-        error: { type: string }
-    RegionProbe:
-      type: object
-      required: [region, probed_at, endpoints]
-      properties:
-        region: { type: string, enum: [us-east, eu-west, asia] }
-        probed_at: { type: integer, format: int64 }
-        endpoints:
-          type: array
-          items: { $ref: '#/components/schemas/EndpointProbe' }
-    ExchangeStatus:
-      type: object
-      required: [exchange_active, trading_active]
-      properties:
-        exchange_active: { type: boolean }
-        trading_active: { type: boolean }
-    WsChannelSample:
-      type: object
-      required: [channel, msg_count, rate_per_sec]
-      properties:
-        channel:
-          type: string
-          enum: [trade, ticker_v2, orderbook_delta, communications]
-        msg_count: { type: integer, description: 'Messages received during the sample window' }
-        rate_per_sec: { type: number, description: 'msg_count divided by sample_ms / 1000' }
-        median_age_ms:
-          type: integer
-          nullable: true
-          description: 'Median (Date.now() - msg.msg.ts) across sampled messages on this channel, or null if none seen'
-    WsSample:
-      type: object
-      required: [connected, sample_ms, sampled_at, channels]
-      description: |
-        Authenticated WebSocket sample. The worker opens one connection per
-        cron tick, subscribes to all four channels, listens for sample_ms
-        milliseconds, then closes. Per-channel rate and median message age
-        are derived from the captured messages.
-      properties:
-        connected:
-          type: boolean
-          description: 'true if the WS upgrade succeeded and accept() was called'
-        handshake_ms:
-          type: integer
-          nullable: true
-          description: 'Time from fetch start to WS accept(), in ms'
-        sample_ms:
-          type: integer
-          description: 'Length of the listen window in ms'
-        sampled_at:
-          type: integer
-          format: int64
-          description: 'Unix ms when the sample began'
-        channels:
-          type: array
-          items: { $ref: '#/components/schemas/WsChannelSample' }
-        error:
-          type: string
-          description: 'Set when the sample could not run (e.g. no_credentials, upgrade_failed_401, ws_error)'
-    Snapshot:
-      type: object
-      required: [ts, environment, status, exchange, endpoints, regions]
-      properties:
-        ts: { type: integer, format: int64 }
-        environment: { type: string, enum: [prod, demo] }
-        status:
-          { type: string, enum: [operational, degraded, partial_outage, major_outage, unknown] }
-        exchange: { $ref: '#/components/schemas/ExchangeStatus' }
-        endpoints:
-          type: array
-          items: { $ref: '#/components/schemas/EndpointProbe' }
-        regions:
-          type: array
-          items: { $ref: '#/components/schemas/RegionProbe' }
-        ws_sample: { $ref: '#/components/schemas/WsSample' }
+        pct: { type: number, description: 'Percentage uptime (0–100)' }
+        ok_count: { type: integer }
+        total_count: { type: integer }

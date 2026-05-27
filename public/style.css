@@ -187,39 +187,6 @@ button:focus-visible {
 .theme-toggle:hover {
   color: var(--fg);
 }
-.env-switcher {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-.env-btn {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  padding: 4px 10px;
-  color: var(--fg-muted);
-  background: transparent;
-  transition:
-    background var(--motion),
-    color var(--motion);
-}
-.env-btn.active {
-  background: var(--surface-elev);
-  color: var(--fg);
-}
-.env-btn:hover:not(.active) {
-  color: var(--fg);
-}
-.compare-link {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--fg-muted);
-  padding: 4px 8px;
-}
-.compare-link:hover {
-  color: var(--accent);
-  text-decoration: none;
-}
 
 /* ── Status banner ───────────────────────────────── */
 .status-banner {
@@ -382,25 +349,7 @@ button:focus-visible {
   font-weight: 500;
   color: var(--fg);
 }
-.section-header.collapsible {
-  cursor: pointer;
-  user-select: none;
-}
-.section-header.collapsible:hover {
-  background: var(--surface-elev);
-}
-.collapse-arrow {
-  font-size: 11px;
-  color: var(--fg-muted);
-  transition: transform var(--motion);
-}
-.collapsed .collapse-arrow {
-  transform: rotate(-90deg);
-}
 .section-body {
-}
-.section-body.hidden {
-  display: none;
 }
 
 /* ── Exchange section ────────────────────────────── */
@@ -446,7 +395,7 @@ button:focus-visible {
 /* ── Endpoint rows ───────────────────────────────── */
 .endpoint-row {
   display: grid;
-  grid-template-columns: 120px 1fr 80px 60px 56px;
+  grid-template-columns: 120px 1fr 60px 56px;
   align-items: center;
   padding: 0 16px;
   height: 32px;
@@ -472,29 +421,7 @@ button:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.sparkline {
-  display: flex;
-  align-items: stretch;
-  height: 24px;
-  width: 80px;
-}
-.sparkline-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.sparkline-svg rect {
-  cursor: help;
-  transition: opacity 150ms ease-out;
-}
-.sparkline-svg:hover rect {
-  opacity: 0.6;
-}
-.sparkline-svg rect:hover {
-  opacity: 1;
-  stroke: var(--fg);
-  stroke-width: 0.5;
-}
+
 .latency {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -531,166 +458,11 @@ button:focus-visible {
   color: var(--status-unknown);
 }
 
-/* ── Endpoint groups ─────────────────────────────── */
-.endpoint-group {
-  border-bottom: 1px solid var(--border);
-}
-.endpoint-group:last-child {
-  border-bottom: none;
-}
-.endpoint-group-title {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--fg-subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 8px 16px 4px;
-}
 .endpoint-error {
   padding: 0 16px 6px 16px;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fg-subtle);
-}
-
-/* ── WebSocket section ───────────────────────────── */
-.ws-content {
-  padding: 12px 16px;
-}
-.ws-meta {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--fg-muted);
-  margin-bottom: 8px;
-}
-.ws-row {
-  display: grid;
-  grid-template-columns: 120px 60px 1fr 80px;
-  align-items: center;
-  height: 28px;
-  gap: 8px;
-  border-bottom: 1px solid var(--border);
-}
-.ws-row:last-child {
-  border-bottom: none;
-}
-.ws-channel {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--fg);
-}
-.ws-count {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--fg-muted);
-  text-align: right;
-}
-.ws-latency {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  text-align: right;
-}
-.ws-status {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-align: right;
-}
-.ws-status.connected {
-  color: var(--status-operational);
-}
-.ws-status.disconnected {
-  color: var(--status-down);
-}
-.ws-status.unknown {
-  color: var(--status-unknown);
-}
-
-/* ── Changelog section ───────────────────────────── */
-.changelog-list {
-}
-.changelog-item {
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-}
-.changelog-item:last-child {
-  border-bottom: none;
-}
-.changelog-title {
-  font-size: 13px;
-  color: var(--fg);
-  margin-bottom: 2px;
-}
-.changelog-summary {
-  font-size: 12px;
-  color: var(--fg-muted);
-  font-style: italic;
-}
-.changelog-meta {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--fg-subtle);
-  margin-top: 2px;
-}
-
-/* ── History section ─────────────────────────────── */
-.history-content {
-  padding: 12px 16px;
-}
-.history-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.hist-btn {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--fg-muted);
-  transition:
-    color var(--motion),
-    border-color var(--motion);
-}
-.hist-btn:hover:not(:disabled) {
-  color: var(--fg);
-  border-color: var(--border-strong);
-}
-.hist-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.hist-ts {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--fg-muted);
-}
-.hist-live-link {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--accent);
-}
-.history-hint {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--fg-subtle);
-  margin-top: 8px;
-}
-
-/* ── History mode banner ─────────────────────────── */
-#history-mode-bar {
-  display: none;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  padding: 6px 16px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--accent);
-  margin-bottom: 8px;
-}
-#history-mode-bar.active {
-  display: block;
 }
 
 /* ── Footer ─────────────────────────────────────── */
@@ -734,14 +506,6 @@ footer {
   color: var(--fg-subtle);
 }
 
-/* ── Error state ─────────────────────────────────── */
-.error-text {
-  padding: 16px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--status-down);
-}
-
 /* ── Mobile adjustments ──────────────────────────── */
 @media (max-width: 600px) {
   .card {
@@ -749,18 +513,9 @@ footer {
     border-right: none;
   }
   .endpoint-row {
-    grid-template-columns: 100px 1fr 60px 48px;
+    grid-template-columns: 100px 1fr 48px;
   }
   .endpoint-row .endpoint-path {
-    display: none;
-  }
-  .ws-row {
-    grid-template-columns: 100px 1fr 80px;
-  }
-  .ws-row .ws-count {
-    display: none;
-  }
-  .compare-link {
     display: none;
   }
   .header-inner {

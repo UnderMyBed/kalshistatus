@@ -1,16 +1,6 @@
 import type { Env } from './types';
-import { runFastCron, runSlowCron } from './cron';
-import {
-  handleApiStatus,
-  handleApiHistory,
-  handleBadge,
-  handleApiChangelog,
-  handleApiVersion,
-  handleArchitectureRedirect,
-} from './api';
-import { handleFeed } from './feed';
-import { CostController } from './cost-control';
-export { CostCounter } from './cost-counter-do';
+import { runProbe, runPrune } from './cron';
+import { handleApiStatus, handleApiHistory, handleBadge, handleApiVersion } from './api';
 import { buildCacheKey, readCache, writeCache, withCacheHit } from './edge-cache';
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -20,24 +10,17 @@ const SECURITY_HEADERS: Record<string, string> = {
   'Permissions-Policy': 'accelerometer=(), camera=(), geolocation=(), microphone=()',
 };
 
-const FRAME_DENY_PATHS = new Set(['/', '/architecture', '/api/status', '/api/history', '/healthz']);
+const FRAME_DENY_PATHS = new Set(['/', '/api/status', '/api/history', '/healthz']);
 const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
 
 function withSecurityHeaders(res: Response, pathname: string): Response {
   const headers = new Headers(res.headers);
-  for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
-    headers.set(k, v);
-  }
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
   if (FRAME_DENY_PATHS.has(pathname)) {
     headers.set('X-Frame-Options', 'DENY');
     headers.set(
       'Content-Security-Policy',
       "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'",
-    );
-  } else if (pathname === '/embed') {
-    headers.set(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors *",
     );
   }
   const body = NULL_BODY_STATUSES.has(res.status) ? null : res.body;
@@ -60,8 +43,7 @@ async function cached(
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const url = new URL(request.url);
-    const { pathname } = url;
+    const { pathname } = new URL(request.url);
 
     if (request.method === 'OPTIONS') {
       return withSecurityHeaders(
@@ -81,32 +63,15 @@ export default {
       return withSecurityHeaders(Response.json({ ok: true, ts: Date.now() }), pathname);
     }
 
-    const { allow } = await new CostController(env.COST_COUNTER).check();
-    if (!allow) {
-      return withSecurityHeaders(
-        Response.json(
-          { error: 'budget_exceeded', retry_after: 3600 },
-          { status: 503, headers: { 'Retry-After': '3600' } },
-        ),
-        pathname,
-      );
-    }
-
     let response: Response;
     if (pathname === '/api/status') {
-      response = await cached(request, ctx, 15, () => handleApiStatus(request, env));
+      response = await cached(request, ctx, 60, () => handleApiStatus(request, env));
     } else if (pathname === '/api/history') {
-      response = await cached(request, ctx, 60, () => handleApiHistory(request, env));
-    } else if (pathname === '/api/changelog') {
-      response = await cached(request, ctx, 300, () => handleApiChangelog(request, env));
+      response = await cached(request, ctx, 300, () => handleApiHistory(request, env));
     } else if (pathname === '/api/version') {
       response = await cached(request, ctx, 300, async () => handleApiVersion(request, env));
     } else if (pathname === '/badge.svg') {
       response = await cached(request, ctx, 60, () => handleBadge(request, env));
-    } else if (pathname === '/feed.xml') {
-      response = await cached(request, ctx, 600, () => handleFeed(env));
-    } else if (pathname === '/architecture') {
-      response = handleArchitectureRedirect();
     } else {
       response = await env.ASSETS.fetch(request);
     }
@@ -123,11 +88,10 @@ export default {
   },
 
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    if (event.cron === '0 * * * *') {
-      ctx.waitUntil(runSlowCron(env));
+    if (event.cron === '0 0 * * *') {
+      ctx.waitUntil(runPrune(env));
     } else {
-      const mode = await new CostController(env.COST_COUNTER).getMode();
-      if (mode !== 'blocked') ctx.waitUntil(runFastCron(env));
+      ctx.waitUntil(runProbe(env));
     }
   },
 };

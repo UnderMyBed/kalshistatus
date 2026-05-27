@@ -1,41 +1,64 @@
 # CLAUDE.md — AI assistant instructions
 
-A Cloudflare Worker that probes the Kalshi API and serves a public status page at
+A public status and performance page for the [Kalshi](https://kalshi.com) API,
+aimed at engineers integrating against it, served at
 [kalshistatus.dev](https://kalshistatus.dev). Built and run by `@UnderMyBed`.
+
+The previous compute stack was decommissioned (ADR 0014) and the project is
+being re-architected. **Cloudflare stays in the stack for DNS, CDN, and WAF
+only** — not as the compute platform. The compute target is being re-decided;
+until it is, don't assume Workers, D1, KV, Durable Objects, or Workers AI.
 
 This file is the source of truth for how you collaborate on this repo. Follow it.
 
 ---
 
-## Operating envelope — this fits in the free tier
+## How we work — Superpowers
 
-This entire stack runs on free tiers. **No change may take it off them.** That is
-a non-negotiable architectural constraint, not a preference.
+All non-trivial work on this repo goes through the **Superpowers** skill set.
+Use the skills; don't freelance the process.
 
-The hard ceilings we live under:
+- **Brainstorm before building.** Any new feature, behavior change, or design
+  decision starts with the `brainstorming` skill to pin down intent and
+  requirements before any code.
+- **Plan, then execute.** Multi-step work gets a written plan (`writing-plans`)
+  executed with review checkpoints (`executing-plans`,
+  `subagent-driven-development`).
+- **TDD.** Implementation is test-first (`test-driven-development`).
+- **Verify before claiming done** (`verification-before-completion`) — run the
+  command, read the output, then make the claim. Evidence before assertions.
+- **Debug systematically** (`systematic-debugging`) — find the root cause, don't
+  paper over the symptom.
+- **Review before merge** (`requesting-code-review`).
 
-| Resource         | Free-tier limit             | What this means in practice                        |
-| ---------------- | --------------------------- | -------------------------------------------------- |
-| Workers requests | 100,000 / day               | `/api/status`, `/badge.svg`, `/embed` are the risk |
-| Workers CPU      | 10 ms / request             | No heavy computation per request                   |
-| KV reads/writes  | 100k reads, 1k writes / day | Read cache only; write-on-change                   |
-| D1 reads/writes  | 5M reads, 100k writes / day | Snapshots + region probes only                     |
-| Workers AI       | 10k Neurons / day           | Slow cron only, ≤1 call per RSS item               |
-| Durable Objects  | SQLite-backed only (free)   | `new_sqlite_classes` migrations, no Storage tier   |
-| Cloudflare Pages | Not used                    | Avoid — Wrangler v3 CVE was here                   |
+If there's even a small chance a skill applies, invoke it.
 
-Concrete rules that follow from the envelope:
+---
 
-- **Public routes must be edge-cached** via `caches.default`. Cache-Control headers
-  alone do NOT cache Workers responses — they only advise clients.
-- **No per-request writes** to D1 or KV from the fetch handler. Anything that
-  scales with traffic must batch, defer to cron, or live in a Durable Object.
-- **Counters that need to be globally atomic** belong in a SQLite-backed Durable
-  Object, not per-isolate memory. The cost circuit breaker is one of these.
-- **Durable Objects must use `new_sqlite_classes`** migrations (free-tier
-  compatible). Plain `new_classes` triggers the paid tier.
-- **No Pages deploys.** Wrangler `pages deploy` had a high-sev OS-injection CVE
-  in v3 and remains a footgun. Use Workers + `[assets]` for static.
+## Operating envelope — free tier, low maintenance
+
+Two constraints define this project and override convenience:
+
+1. **It runs on free tiers. No change may take it off them.** This is a
+   non-negotiable architectural constraint, not a preference.
+2. **It must be near-zero maintenance.** The operator does not want to babysit
+   this site. A design that needs routine human attention is the wrong design.
+
+Cloudflare provides **DNS, CDN, and WAF**. Compute, storage, and any scheduled
+work live on whatever platform the re-architecture selects; that platform's
+concrete free-tier ceilings get documented here (and in an ADR) once chosen.
+
+Rules that hold regardless of which platform we land on:
+
+- **Cacheable responses must actually be cached at the edge.** A `Cache-Control`
+  header only advises the client — it does not, by itself, make the CDN serve a
+  cached copy. Cache hot public routes explicitly.
+- **Nothing that scales with traffic may write to a datastore per request.** A
+  bot hitting a badge endpoint 100k/day must not become 100k writes. Batch,
+  defer to a scheduled job, or drop the write.
+- **Globally atomic state needs real shared storage**, not per-instance memory.
+  Counters kept in the memory of a stateless or replicated runtime drift
+  arbitrarily far from reality.
 - **`continue-on-error: true` in CI is forbidden** unless documented why a
   silent failure is correct (it almost never is).
 
@@ -75,9 +98,10 @@ Specifically:
 
 - New env var or secret → `docs/runbook.md` (Secrets section) + relevant ADR
 - New route → `docs/ARCHITECTURE.md` (Routes section) + `/openapi.yaml`
-- New binding (D1 / KV / DO / AI / Queue / etc.) → `docs/ARCHITECTURE.md` +
-  new ADR
-- New cron behavior or schedule → `docs/ARCHITECTURE.md` + `docs/runbook.md`
+- New infrastructure dependency (datastore, queue, scheduler, external service)
+  → `docs/ARCHITECTURE.md` + new ADR
+- New scheduled-job behavior or schedule → `docs/ARCHITECTURE.md` +
+  `docs/runbook.md`
 - Rollback steps that change → `docs/runbook.md`
 - Cost-control behavior change → `docs/runbook.md` (Cost section) + ADR
 
@@ -95,18 +119,6 @@ Specifically:
 
 ---
 
-## Bindings in `wrangler.toml`
-
-- **Never modify** `[d1_databases]`, `[kv_namespaces]`, or `[ai]` blocks after
-  Phase 1 unless replacing the binding wholesale via a documented ADR
-- **Adding** new binding types (e.g. `[[durable_objects.bindings]]`) is
-  allowed and expected as the system grows — write an ADR
-- Compatibility date may be advanced; the test runtime must match (bump
-  `@cloudflare/vitest-pool-workers` if necessary so tests are not 8 months
-  behind prod)
-
----
-
 ## Privacy
 
 - The repo author is `@UnderMyBed` on GitHub. **Never** use a real name in
@@ -114,9 +126,6 @@ Specifically:
 - **Never** reference private spec paths or internal planning documents in any
   committed file. Distill architectural decisions into ADRs. Distill
   operational knowledge into `docs/runbook.md`
-- The handoff config at `/home/matt/source/kalshistatus-spec/handoff.local`
-  is **outside the repo by design**. Never copy any of its contents into a
-  committed file
 - `docs/superpowers/`, `*.local`, `.env*` are gitignored — keep it that way
 
 ---
@@ -128,8 +137,8 @@ Specifically:
   main
 - **Never** skip hooks (`--no-verify`) or bypass signing
 - **Squash-merge only** via `gh pr merge --squash --auto`
-- **Never** run `wrangler secret put` from automation (secrets are
-  pre-pushed; ask the human if you think one needs rotating)
+- **Never** create or rotate production secrets from automation — ask the
+  human if you think one needs rotating
 
 ---
 
@@ -137,8 +146,9 @@ Specifically:
 
 - All CI workflows must declare an explicit `permissions:` block — never inherit
   the default token scope
-- Production deploy is on every push to `main`. There is no staging. **Land
-  changes via PR with green CI**; do not push directly to main
+- There is currently **no deploy pipeline** — the production stack was
+  decommissioned (ADR 0014) and the re-architecture will rebuild it. Until
+  then, **land changes via PR with green CI**; do not push directly to main
 - Conventional Commits required (`feat:`, `fix:`, `chore:`, `docs:`,
   `refactor:`, `test:`)
 - One change per PR — don't bundle a security-headers patch with a UI
@@ -154,18 +164,19 @@ Specifically:
 
 These are real incidents from this codebase. **Do not repeat them.**
 
-1. **`Cache-Control` headers on `/api/*` are not edge caching.** Workers responses
-   bypass the CDN unless you `caches.default.put(request, response.clone())`
-   explicitly. Always use the Cache API for cacheable Worker responses.
+1. **A `Cache-Control` header is not edge caching.** A dynamic response is not
+   served from the CDN just because it carries cache headers — they advise the
+   client, not the edge. Cacheable responses must be explicitly stored at the
+   edge.
 
-2. **Per-request D1 writes are a cost amplifier.** A bot hitting `/badge.svg`
-   100k times a day is 100k D1 writes if you write on every request. Defer to
-   cron, debounce in a Durable Object, or drop the write.
+2. **Per-request datastore writes are a cost amplifier.** A bot hitting
+   `/badge.svg` 100k times a day is 100k writes if you write on every request.
+   Defer to a scheduled job, debounce, or drop the write.
 
-3. **Per-isolate counters are not circuit breakers.** Cloudflare runs many
-   isolates concurrently. In-memory counters with periodic-persist drift
-   arbitrarily far from reality. Atomic global state belongs in a Durable
-   Object.
+3. **In-memory counters are not circuit breakers.** A stateless or replicated
+   runtime runs many instances concurrently; in-memory counters with
+   periodic-persist drift arbitrarily far from reality. Atomic global state
+   belongs in real shared storage.
 
 4. **`continue-on-error: true` masks deploys silently failing.** If a step is
    allowed to fail, the failure must be observable somewhere else (alert,
@@ -190,7 +201,7 @@ These are real incidents from this codebase. **Do not repeat them.**
 
 8. **A hardcoded string constant is not authentication.** `const GUARD =
 "kalshi-grafana-init-2026"` committed to a public repo is a public
-   string. Use a secret binding for any admin endpoint, or remove the
+   string. Use a real secret for any admin endpoint, or remove the
    endpoint after use.
 
 9. **`max-age=0` HSTS is worse than no HSTS** — it actively tells browsers to
@@ -198,8 +209,8 @@ These are real incidents from this codebase. **Do not repeat them.**
 includeSubDomains; preload` minimum).
 
 10. **Inline `<style>` blocks of hundreds of lines mean no caching and slow
-    first paint.** Static CSS belongs in `public/style.css` served by
-    `[assets]`.
+    first paint.** Static CSS belongs in a cached static asset (e.g.
+    `public/style.css`), not inline.
 
 ---
 

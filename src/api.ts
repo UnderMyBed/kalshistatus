@@ -1,7 +1,5 @@
-import type { Env, Environment, ChangelogEntry, OverallStatus } from './types';
-import { readLatestSnapshot } from './kv';
-import { readSnapshotHistory, readSnapshotAt, loadRecentRegionProbes } from './storage';
-import { readUptimeMetrics } from './uptime';
+import type { Env, OverallStatus } from './types';
+import { loadLatestSnapshot, readSnapshotsSince, computeUptime } from './storage';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -16,77 +14,71 @@ export const STATUS_COLORS: Record<OverallStatus, string> = {
   unknown: '#71717a',
 };
 
+const WINDOW_MS: Record<string, number> = {
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
+};
+
 function isGetOrHead(req: Request): boolean {
   return req.method === 'GET' || req.method === 'HEAD';
 }
 
-export function parseEnvironment(url: URL): Environment {
-  return url.searchParams.get('env') === 'demo' ? 'demo' : 'prod';
-}
-
-function parseLimit(url: URL, defaultLimit: number, maxLimit: number): number {
-  const raw = parseInt(url.searchParams.get('limit') ?? String(defaultLimit), 10);
-  return Math.min(Number.isFinite(raw) && raw > 0 ? raw : defaultLimit, maxLimit);
+function downsample<T>(arr: T[], max: number): T[] {
+  if (arr.length <= max) return arr;
+  const stride = Math.ceil(arr.length / max);
+  return arr.filter((_, i) => i % stride === 0);
 }
 
 export async function handleApiStatus(request: Request, env: Env): Promise<Response> {
-  if (!isGetOrHead(request)) {
+  if (!isGetOrHead(request))
     return new Response('Method Not Allowed', { status: 405, headers: CORS });
-  }
-  const url = new URL(request.url);
-  const environment = parseEnvironment(url);
 
-  const atParam = url.searchParams.get('at');
-  if (atParam !== null) {
-    if (!/^\d+$/.test(atParam)) {
-      return Response.json({ error: 'Invalid timestamp' }, { status: 400, headers: CORS });
-    }
-    const ts = parseInt(atParam, 10);
-    const snapshot = await readSnapshotAt(env.DB, environment, ts);
-    if (!snapshot) {
-      return Response.json({ error: 'Snapshot not found' }, { status: 404, headers: CORS });
-    }
-    return Response.json(snapshot, {
-      headers: { ...CORS, 'Cache-Control': 'public, max-age=300' },
-    });
-  }
+  const snapshot = await loadLatestSnapshot(env.DB);
+  if (!snapshot) return Response.json({ error: 'no_data' }, { status: 404, headers: CORS });
 
-  const snapshot = await readLatestSnapshot(env.KALSHI_KV, environment);
-  if (!snapshot) {
-    return Response.json({ error: 'no_data' }, { status: 404, headers: CORS });
-  }
-
-  const sinceMs = Date.now() - 60 * 60 * 1000;
-  const [regions, uptime] = await Promise.all([
-    loadRecentRegionProbes(env.DB, environment, sinceMs),
-    readUptimeMetrics(env.DB, environment),
+  const now = Date.now();
+  const [u24, u7, u30] = await Promise.all([
+    computeUptime(env.DB, now - WINDOW_MS['24h']),
+    computeUptime(env.DB, now - WINDOW_MS['7d']),
+    computeUptime(env.DB, now - WINDOW_MS['30d']),
   ]);
 
-  const body = uptime ? { ...snapshot, regions, uptime } : { ...snapshot, regions };
-  return Response.json(body, {
-    headers: { ...CORS, 'Cache-Control': 'public, max-age=30' },
-  });
+  return Response.json(
+    { ...snapshot, uptime: { '24h': u24, '7d': u7, '30d': u30 } },
+    { headers: { ...CORS, 'Cache-Control': 'public, max-age=60' } },
+  );
 }
 
 export async function handleApiHistory(request: Request, env: Env): Promise<Response> {
-  if (!isGetOrHead(request)) {
+  if (!isGetOrHead(request))
     return new Response('Method Not Allowed', { status: 405, headers: CORS });
-  }
+
   const url = new URL(request.url);
-  const environment = parseEnvironment(url);
-  const limit = parseLimit(url, 60, 1440);
-  const snapshots = await readSnapshotHistory(env.DB, environment, limit);
-  return Response.json(snapshots, {
-    headers: { ...CORS, 'Cache-Control': 'public, max-age=60' },
+  const window = url.searchParams.get('window') ?? '24h';
+  const span = WINDOW_MS[window];
+  if (!span) return Response.json({ error: 'invalid_window' }, { status: 400, headers: CORS });
+
+  const snapshots = await readSnapshotsSince(env.DB, Date.now() - span);
+  const points = snapshots.map((s) => {
+    const latencies = s.endpoints.map((e) => e.latency_ms).filter((l): l is number => l != null);
+    const latency_ms = latencies.length
+      ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
+      : null;
+    return { ts: s.ts, latency_ms };
   });
+
+  return Response.json(
+    { window, series: downsample(points, 300) },
+    { headers: { ...CORS, 'Cache-Control': 'public, max-age=300' } },
+  );
 }
 
 export async function handleBadge(request: Request, env: Env): Promise<Response> {
-  if (!isGetOrHead(request)) {
+  if (!isGetOrHead(request))
     return new Response('Method Not Allowed', { status: 405, headers: CORS });
-  }
-  const environment = parseEnvironment(new URL(request.url));
-  const snapshot = await readLatestSnapshot(env.KALSHI_KV, environment);
+
+  const snapshot = await loadLatestSnapshot(env.DB);
   const status = (snapshot?.status ?? 'unknown') as OverallStatus;
   const color = STATUS_COLORS[status];
   const label = status.replace(/_/g, ' ');
@@ -102,35 +94,11 @@ export async function handleBadge(request: Request, env: Env): Promise<Response>
   });
 }
 
-export async function handleApiChangelog(request: Request, env: Env): Promise<Response> {
-  if (!isGetOrHead(request)) {
-    return new Response('Method Not Allowed', { status: 405, headers: CORS });
-  }
-  const url = new URL(request.url);
-  const limit = parseLimit(url, 20, 50);
-  const { results } = await env.DB.prepare(
-    'SELECT link, title, summary_ai, pub_date_ts FROM changelog_summaries ORDER BY pub_date_ts DESC LIMIT ?',
-  )
-    .bind(limit)
-    .all<ChangelogEntry>();
-  return Response.json(results, {
-    headers: { ...CORS, 'Cache-Control': 'public, max-age=300' },
-  });
-}
-
 export function handleApiVersion(request: Request, env: Env): Response {
-  if (!isGetOrHead(request)) {
+  if (!isGetOrHead(request))
     return new Response('Method Not Allowed', { status: 405, headers: CORS });
-  }
   return Response.json(
     { version: env.VERSION, commit: env.COMMIT_SHA },
     { headers: { ...CORS, 'Cache-Control': 'public, max-age=300' } },
-  );
-}
-
-export function handleArchitectureRedirect(): Response {
-  return Response.redirect(
-    'https://github.com/UnderMyBed/kalshistatus/blob/main/docs/ARCHITECTURE.md',
-    302,
   );
 }
