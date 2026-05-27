@@ -36,3 +36,4 @@ from this index.
 | 12  | [Cost counter Durable Object](0012-cost-counter-durable-object.md)             | Accepted             |
 | 13  | [WebSocket multi-channel sampling](0013-websocket-multi-channel-sampling.md)   | Accepted             |
 | 14  | [Decommission production stack](0014-decommission-stack.md)                    | Accepted             |
+| 15  | [Re-architect as a public-only probe on the Workers free tier](0015-public-only-probe-rearchitecture.md) | Accepted             |
