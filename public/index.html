@@ -3,30 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>kalshistatus.dev — Real-time status for the Kalshi API</title>
+    <title>kalshistatus.dev — Status &amp; performance for the Kalshi API</title>
     <meta
       name="description"
-      content="Real-time status &amp; performance for the Kalshi API. For the engineers shipping against it."
+      content="Status &amp; performance for the Kalshi API. For the engineers shipping against it."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preload" href="/fonts/Inter-var.woff2" as="font" type="font/woff2" crossorigin />
-    <link
-      rel="preload"
-      href="/fonts/JetBrainsMono-var.woff2"
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
+    <link rel="preload" href="/fonts/JetBrainsMono-var.woff2" as="font" type="font/woff2" crossorigin />
     <meta property="og:title" content="kalshistatus.dev" />
     <meta
       property="og:description"
-      content="Real-time status &amp; performance for the Kalshi API. For the engineers shipping against it."
+      content="Status &amp; performance for the Kalshi API. For the engineers shipping against it."
     />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://kalshistatus.dev/og.svg" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://kalshistatus.dev/og.svg" />
-    <link rel="alternate" type="application/rss+xml" href="/feed.xml" />
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
@@ -37,24 +30,13 @@
           <span>kalshistatus.dev</span>
         </a>
         <div class="header-controls">
-          <button class="theme-toggle" id="theme-toggle" aria-label="Toggle color theme">
-            auto
-          </button>
-          <div class="env-switcher" role="group" aria-label="Environment">
-            <button class="env-btn active" id="env-prod" data-env="prod">prod</button>
-            <button class="env-btn" id="env-demo" data-env="demo">demo</button>
-          </div>
+          <button class="theme-toggle" id="theme-toggle" aria-label="Toggle color theme">auto</button>
         </div>
       </div>
     </header>
 
     <main id="main">
       <div class="container">
-        <div id="history-mode-bar">
-          viewing snapshot —
-          <a class="hist-live-link" id="history-return-link" href="/">return to live</a>
-        </div>
-
         <section class="status-banner" aria-label="Overall status">
           <div class="banner-status">
             <span class="banner-dot unknown" id="banner-dot" aria-label="unknown">●</span>
@@ -68,26 +50,8 @@
         </section>
 
         <section class="card" id="section-exchange" aria-label="Exchange status">
-          <div class="section-header">
-            <h2>Exchange</h2>
-          </div>
+          <div class="section-header"><h2>Exchange</h2></div>
           <div class="exchange-content" id="exchange-content">
-            <div class="loading-text">Loading…</div>
-          </div>
-        </section>
-
-        <section class="card" id="section-changelog" aria-label="Changelog">
-          <div
-            class="section-header collapsible"
-            id="changelog-header"
-            role="button"
-            tabindex="0"
-            aria-expanded="false"
-          >
-            <h2>Changelog</h2>
-            <span class="collapse-arrow" aria-hidden="true">▾</span>
-          </div>
-          <div class="section-body hidden changelog-list" id="changelog-body">
             <div class="loading-text">Loading…</div>
           </div>
         </section>
@@ -96,7 +60,7 @@
           <section class="card" aria-label="JavaScript required">
             <div class="loading-text">
               This dashboard renders live data via JavaScript. The raw API is
-              <a href="/api/status?env=prod">/api/status?env=prod</a> — same shape, no JS required.
+              <a href="/api/status">/api/status</a> — same shape, no JS required.
             </div>
           </section>
         </noscript>
@@ -111,58 +75,10 @@
           </div>
         </section>
 
-        <section class="card" id="section-regions" aria-label="Regions">
-          <div class="section-header">
-            <h2>Regions</h2>
-          </div>
-          <div class="ws-content" id="regions-content">
-            <div class="loading-text">Loading…</div>
-          </div>
-        </section>
-
         <section class="card" id="section-endpoints" aria-label="Endpoints">
-          <div
-            class="section-header collapsible"
-            id="endpoints-header"
-            role="button"
-            tabindex="0"
-            aria-expanded="true"
-          >
-            <h2>Endpoints</h2>
-            <span class="collapse-arrow" aria-hidden="true">▾</span>
-          </div>
+          <div class="section-header"><h2>Endpoints</h2></div>
           <div class="section-body" id="endpoints-body">
             <div class="loading-text">Loading…</div>
-          </div>
-        </section>
-
-        <section class="card" id="section-ws" aria-label="WebSocket">
-          <div class="section-header">
-            <h2>WebSocket</h2>
-          </div>
-          <div class="ws-content" id="ws-content">
-            <div class="loading-text">Loading…</div>
-          </div>
-        </section>
-
-        <section class="card" id="section-history" aria-label="History">
-          <div class="section-header">
-            <h2>History</h2>
-          </div>
-          <div class="history-content">
-            <div class="history-controls">
-              <button class="hist-btn" id="hist-prev" disabled aria-label="Previous snapshot">
-                ← prev
-              </button>
-              <span class="hist-ts" id="hist-ts">live</span>
-              <button class="hist-btn" id="hist-next" disabled aria-label="Next snapshot">
-                next →
-              </button>
-              <a class="hist-live-link" id="hist-live" href="/" style="display: none"
-                >return to live</a
-              >
-            </div>
-            <div class="history-hint" id="hist-hint">← → arrow keys navigate history</div>
           </div>
         </section>
       </div>
@@ -171,10 +87,6 @@
     <footer>
       <div class="container footer-inner">
         <a href="https://github.com/UnderMyBed/kalshistatus">Source</a>
-        <span class="footer-sep">·</span>
-        <a href="/architecture">Architecture</a>
-        <span class="footer-sep">·</span>
-        <a href="/feed.xml">RSS</a>
         <span class="footer-sep">·</span>
         <a href="/openapi.yaml">OpenAPI</a>
         <span class="footer-sep">·</span>

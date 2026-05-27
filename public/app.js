@@ -1,28 +1,13 @@
 (function () {
   'use strict';
 
-  const POLL_INTERVAL = 15_000;
-  const SPARKLINE_SIZE = 10;
+  const POLL_INTERVAL = 30_000;
   const THEME_KEY = 'kalshi_theme';
-  const ENV_KEY = 'kalshi_env';
   const THEMES = ['auto', 'light', 'dark'];
-
-  let currentEnv = 'prod';
-  let currentSnapshot = null;
-  let historyMode = false;
-  let historyTs = null;
-  let historyList = [];
-  let historyListEnv = null;
-  let pollTimer = null;
-  const sparkBuffers = new Map();
 
   const $ = (id) => document.getElementById(id);
   const $wordmarkDot = $('wordmark-dot');
   const $themeToggle = $('theme-toggle');
-  const $envProd = $('env-prod');
-  const $envDemo = $('env-demo');
-  const $historyBar = $('history-mode-bar');
-  const $histReturnLink = $('history-return-link');
   const $bannerDot = $('banner-dot');
   const $bannerText = $('banner-text');
   const $bannerAge = $('banner-age');
@@ -31,16 +16,7 @@
   const $latencyChart = $('latency-chart');
   const $latencyMeta = $('latency-meta');
   const $exchangeContent = $('exchange-content');
-  const $changelogHeader = $('changelog-header');
-  const $changelogBody = $('changelog-body');
-  const $endpointsHeader = $('endpoints-header');
   const $endpointsBody = $('endpoints-body');
-  const $regionsContent = $('regions-content');
-  const $wsContent = $('ws-content');
-  const $histPrev = $('hist-prev');
-  const $histTs = $('hist-ts');
-  const $histNext = $('hist-next');
-  const $histLive = $('hist-live');
   const $footerVersion = $('footer-version');
 
   function getTheme() {
@@ -53,39 +29,7 @@
     $themeToggle.setAttribute('aria-label', `Color theme: ${theme}`);
   }
   function cycleTheme() {
-    const next = THEMES[(THEMES.indexOf(getTheme()) + 1) % THEMES.length];
-    setTheme(next);
-  }
-
-  function initEnv() {
-    const urlEnv = new URL(location.href).searchParams.get('env');
-    currentEnv =
-      urlEnv === 'prod' || urlEnv === 'demo' ? urlEnv : localStorage.getItem(ENV_KEY) || 'prod';
-    updateEnvButtons();
-  }
-  function setEnv(env) {
-    if (env === currentEnv) return;
-    currentEnv = env;
-    localStorage.setItem(ENV_KEY, env);
-    updateEnvButtons();
-    historyList = [];
-    historyListEnv = null;
-    sparkBuffers.clear();
-    if (historyMode) exitHistory(false);
-    fetchAndRender();
-    fetchChangelog();
-    fetchLatencyHistory();
-    updateTitle();
-  }
-  function updateEnvButtons() {
-    $envProd.classList.toggle('active', currentEnv === 'prod');
-    $envDemo.classList.toggle('active', currentEnv === 'demo');
-  }
-
-  function updateTitle() {
-    const envTag = currentEnv === 'demo' ? ' [demo]' : '';
-    const histTag = historyMode ? ' [history]' : '';
-    document.title = `kalshistatus.dev${envTag}${histTag} — Kalshi API status`;
+    setTheme(THEMES[(THEMES.indexOf(getTheme()) + 1) % THEMES.length]);
   }
 
   function latencyClass(ms) {
@@ -118,66 +62,6 @@
     }
   }
 
-  function pushSparkline(key, ms) {
-    if (!sparkBuffers.has(key)) sparkBuffers.set(key, []);
-    const buf = sparkBuffers.get(key);
-    buf.push({ ms, ts: Date.now() });
-    if (buf.length > SPARKLINE_SIZE) buf.shift();
-  }
-  function renderSparklineHTML(buf, label) {
-    const N = SPARKLINE_SIZE;
-    const padded = Array(Math.max(0, N - buf.length))
-      .fill(null)
-      .concat(buf.slice(-N));
-    const valid = padded.filter((v) => v != null && v.ms != null).map((v) => v.ms);
-    const maxVal = valid.length ? Math.max(...valid, 1) : 1;
-    const colorMap = {
-      fast: 'var(--status-operational)',
-      slow: 'var(--status-degraded)',
-      vslow: 'var(--status-down)',
-      none: 'var(--border)',
-    };
-    const W = 80;
-    const H = 24;
-    const barW = (W - (N - 1)) / N;
-    const now = Date.now();
-    const bars = padded
-      .map((v, i) => {
-        const ms = v?.ms ?? null;
-        const ts = v?.ts ?? null;
-        const cls = latencyClass(ms);
-        const h = ms != null ? Math.max(2, Math.round((ms / maxVal) * (H - 2))) : 2;
-        const x = (i * (W - barW * N)) / Math.max(1, N - 1) + i * barW;
-        const y = H - h;
-        const fill = colorMap[cls];
-        const title =
-          ms == null
-            ? 'no sample yet'
-            : `${latencyText(ms)} · ${ts != null ? formatAge(now - ts) + ' ago' : '—'}`;
-        return `<rect x="${x.toFixed(1)}" y="${y}" width="${barW.toFixed(1)}" height="${h}" rx="1" fill="${fill}"><title>${escHtml(title)}</title></rect>`;
-      })
-      .join('');
-    const labelAttr = label
-      ? ` aria-label="${escHtml(`${label} — last ${valid.length} samples`)}"`
-      : '';
-    const meta = valid.length
-      ? `min ${Math.min(...valid)}ms · max ${Math.max(...valid)}ms`
-      : 'no samples yet';
-    return `<svg class="sparkline-svg" viewBox="0 0 ${W} ${H}" role="img"${labelAttr}><title>${escHtml(meta)}</title>${bars}</svg>`;
-  }
-
-  function renderStatus(snap) {
-    const status = snap?.status ?? 'unknown';
-    $wordmarkDot.className = `wordmark-dot ${status}`;
-    $bannerDot.className = `banner-dot ${status}`;
-    $bannerDot.setAttribute('aria-label', status);
-    $bannerText.textContent = status.replace(/_/g, ' ');
-    const ageMs = Date.now() - (snap?.ts ?? Date.now());
-    $bannerAge.textContent = `updated ${formatAge(ageMs)} ago`;
-    $bannerCron.textContent = historyMode ? 'snapshot view' : 'polling every 15s';
-    renderUptime(snap?.uptime);
-  }
-
   function uptimeClass(pct) {
     if (pct >= 99.9) return '';
     if (pct >= 99) return 'degraded';
@@ -186,26 +70,35 @@
   }
 
   function renderUptime(uptime) {
-    if (!uptime || !uptime.windows) {
+    if (!uptime) {
       $bannerUptime.innerHTML = '';
       return;
     }
-    const labels = { 24: '24h', 168: '7d', 720: '30d' };
-    const order = ['24', '168', '720'];
-    const items = order
-      .filter((k) => uptime.windows[k])
-      .map((k) => {
-        const w = uptime.windows[k];
+    const order = [
+      ['24h', '24h'],
+      ['7d', '7d'],
+      ['30d', '30d'],
+    ];
+    $bannerUptime.innerHTML = order
+      .filter(([k]) => uptime[k])
+      .map(([k, label]) => {
+        const w = uptime[k];
         const pct = Number(w.pct);
-        const cls = uptimeClass(pct);
-        const display =
-          w.total_count === 0 ? '—' : `${pct.toFixed(pct >= 99.99 ? 2 : pct >= 99 ? 2 : 1)}%`;
-        return `<div class="uptime-window">
-          <span class="uptime-window-pct ${cls}">${display}</span>
-          <span class="uptime-window-label">${labels[k]}</span>
-        </div>`;
-      });
-    $bannerUptime.innerHTML = items.join('');
+        const display = w.total_count === 0 ? '—' : `${pct.toFixed(pct >= 99.99 ? 2 : 1)}%`;
+        return `<div class="uptime-window"><span class="uptime-window-pct ${uptimeClass(pct)}">${display}</span><span class="uptime-window-label">${label}</span></div>`;
+      })
+      .join('');
+  }
+
+  function renderStatus(snap) {
+    const status = snap.status ?? 'unknown';
+    $wordmarkDot.className = `wordmark-dot ${status}`;
+    $bannerDot.className = `banner-dot ${status}`;
+    $bannerDot.setAttribute('aria-label', status);
+    $bannerText.textContent = status.replace(/_/g, ' ');
+    $bannerAge.textContent = `updated ${formatAge(Date.now() - (snap.ts ?? Date.now()))} ago`;
+    $bannerCron.textContent = 'polling every 30s';
+    renderUptime(snap.uptime);
   }
 
   function renderExchange(snap) {
@@ -227,379 +120,89 @@
       $endpointsBody.innerHTML = '<div class="loading-text">No endpoint data</div>';
       return;
     }
-    for (const ep of endpoints) pushSparkline(ep.name, ep.latency_ms ?? null);
-
-    const groups = [
-      { title: 'Public', filter: (ep) => !ep.requires_auth },
-      { title: 'Authenticated', filter: (ep) => ep.requires_auth },
-    ];
-
-    const rowHtml = (ep) => {
-      const buf = sparkBuffers.get(ep.name) ?? [];
-      const lCls = latencyClass(ep.latency_ms ?? null);
-      const lText = latencyText(ep.latency_ms ?? null);
-      const sCls = ['up', 'degraded', 'down', 'unknown'].includes(ep.status)
-        ? ep.status
-        : 'unknown';
-      const noteHtml = ep.error ? `<div class="endpoint-error">${escHtml(ep.error)}</div>` : '';
-      return `<div class="endpoint-row">
-        <span class="endpoint-name">${escHtml(ep.name)}</span>
-        <span class="endpoint-path" title="${escHtml(ep.url)}">${escHtml(endpointPath(ep))}</span>
-        <div class="sparkline">${renderSparklineHTML(buf, `${ep.name} latency`)}</div>
-        <span class="latency ${lCls}">${lText}</span>
-        <span class="endpoint-status ${sCls}">${escHtml(ep.status ?? '?')}</span>
-      </div>${noteHtml}`;
-    };
-
-    const html = groups
-      .map((g) => {
-        const rows = endpoints.filter(g.filter).map(rowHtml).join('');
-        if (!rows) return '';
-        return `<div class="endpoint-group"><div class="endpoint-group-title">${g.title}</div>${rows}</div>`;
+    $endpointsBody.innerHTML = endpoints
+      .map((ep) => {
+        const sCls = ['up', 'degraded', 'down', 'unknown'].includes(ep.status) ? ep.status : 'unknown';
+        const noteHtml = ep.error ? `<div class="endpoint-error">${escHtml(ep.error)}</div>` : '';
+        return `<div class="endpoint-row">
+          <span class="endpoint-name">${escHtml(ep.name)}</span>
+          <span class="endpoint-path" title="${escHtml(ep.url)}">${escHtml(endpointPath(ep))}</span>
+          <span class="latency ${latencyClass(ep.latency_ms ?? null)}">${latencyText(ep.latency_ms ?? null)}</span>
+          <span class="endpoint-status ${sCls}">${escHtml(ep.status ?? '?')}</span>
+        </div>${noteHtml}`;
       })
       .join('');
-    $endpointsBody.innerHTML = html;
   }
 
-  function renderRegions(snap) {
-    const regions = snap.regions ?? [];
-    if (!regions.length) {
-      $regionsContent.innerHTML =
-        '<div class="ws-meta">No recent regional probes yet — best-effort sampling from request traffic.</div>';
-      return;
-    }
-    const rows = regions.map((r) => {
-      const ageMs = Date.now() - (r.probed_at ?? Date.now());
-      const eps = (r.endpoints ?? []).filter((ep) => !ep.requires_auth);
-      const upCount = eps.filter((ep) => ep.status === 'up').length;
-      const avgLatency = eps.length
-        ? Math.round(
-            eps.reduce((s, ep) => s + (ep.latency_ms ?? 0), 0) /
-              Math.max(1, eps.filter((ep) => ep.latency_ms != null).length),
-          )
-        : null;
-      const cls = upCount === eps.length && eps.length > 0 ? 'connected' : 'disconnected';
-      const latencyStr = avgLatency != null ? latencyText(avgLatency) : '—';
-      return `<div class="ws-row">
-        <span class="ws-channel">${escHtml(r.region)}</span>
-        <span class="ws-count">${escHtml(`${upCount}/${eps.length}`)} up</span>
-        <span class="ws-latency latency ${latencyClass(avgLatency)}">${latencyStr}</span>
-        <span class="ws-status ${cls}">${formatAge(ageMs)} ago</span>
-      </div>`;
-    });
-    $regionsContent.innerHTML = rows.join('');
-  }
-
-  function renderWs(snap) {
-    const ws = snap.ws_sample;
-    if (!ws) {
-      $wsContent.innerHTML = '<div class="ws-meta">No WebSocket data</div>';
-      return;
-    }
-    const sampledAgo = formatAge(Date.now() - (ws.sampled_at ?? Date.now()));
-    const sampleSec = ws.sample_ms != null ? (ws.sample_ms / 1000).toFixed(1) + 's' : '—';
-    const handshake = ws.handshake_ms != null ? `${ws.handshake_ms}ms handshake` : null;
-    const channels = Array.isArray(ws.channels) ? ws.channels : [];
-    const connectedCount = channels.filter((c) => (c.msg_count ?? 0) > 0).length;
-
-    const metaParts = [`sampled ${sampledAgo} ago`, `${sampleSec} window`];
-    if (handshake) metaParts.push(handshake);
-    metaParts.push(`${connectedCount}/${channels.length} channels active`);
-    const meta = `<div class="ws-meta">${metaParts.map(escHtml).join(' · ')}</div>`;
-
-    const errNote = ws.error ? `<div class="error-text">error: ${escHtml(ws.error)}</div>` : '';
-
-    if (channels.length === 0) {
-      $wsContent.innerHTML = meta + errNote;
-      return;
-    }
-
-    const rows = channels.map((c) => {
-      const active = (c.msg_count ?? 0) > 0;
-      const sCls = active ? 'connected' : 'disconnected';
-      const sText = active ? `${c.msg_count} msgs` : 'silent';
-      const rate = c.rate_per_sec != null ? `${c.rate_per_sec.toFixed(1)}/s` : '—';
-      const age = c.median_age_ms != null ? latencyText(c.median_age_ms) : '—';
-      const ageCls = latencyClass(c.median_age_ms ?? null);
-      return `<div class="ws-row">
-        <span class="ws-channel">${escHtml(c.channel)}</span>
-        <span class="ws-count">${escHtml(rate)}</span>
-        <span class="ws-latency latency ${ageCls}" title="median message age">${escHtml(age)}</span>
-        <span class="ws-status ${sCls}">${escHtml(sText)}</span>
-      </div>`;
-    });
-
-    $wsContent.innerHTML = meta + rows.join('') + errNote;
-  }
-
-  function renderLatencyChart(snapshots) {
-    if (!snapshots || snapshots.length < 2) {
+  function renderLatencyChart(series) {
+    const points = (series ?? []).filter((p) => p.latency_ms != null);
+    if (points.length < 2) {
       $latencyChart.innerHTML = '<div class="latency-chart-empty">Collecting data…</div>';
       $latencyMeta.textContent = '';
       return;
     }
-    const points = snapshots
-      .slice()
-      .sort((a, b) => a.ts - b.ts)
-      .map((snap) => {
-        const publicLatencies = (snap.endpoints ?? [])
-          .filter((ep) => !ep.requires_auth && ep.latency_ms != null)
-          .map((ep) => ep.latency_ms);
-        if (publicLatencies.length === 0) return { ts: snap.ts, latency: null };
-        const avg = publicLatencies.reduce((s, v) => s + v, 0) / publicLatencies.length;
-        return { ts: snap.ts, latency: Math.round(avg) };
-      })
-      .filter((p) => p.latency != null);
-
-    if (points.length < 2) {
-      $latencyChart.innerHTML = '<div class="latency-chart-empty">Collecting data…</div>';
-      return;
-    }
-
     const W = 1000;
     const H = 160;
     const padding = { left: 38, right: 8, top: 12, bottom: 22 };
     const innerW = W - padding.left - padding.right;
     const innerH = H - padding.top - padding.bottom;
-
     const tsMin = points[0].ts;
     const tsMax = points[points.length - 1].ts;
     const tsRange = Math.max(1, tsMax - tsMin);
-
-    const latencies = points.map((p) => p.latency);
-    const yMax = Math.max(...latencies, 100);
-    const yNice = Math.ceil(yMax / 100) * 100;
-
+    const latencies = points.map((p) => p.latency_ms);
+    const yNice = Math.ceil(Math.max(...latencies, 100) / 100) * 100;
     const x = (ts) => padding.left + ((ts - tsMin) / tsRange) * innerW;
     const y = (l) => padding.top + (1 - l / yNice) * innerH;
 
     const lineD =
-      `M${x(points[0].ts).toFixed(1)},${y(points[0].latency).toFixed(1)} ` +
-      points
-        .slice(1)
-        .map((p) => `L${x(p.ts).toFixed(1)},${y(p.latency).toFixed(1)}`)
-        .join(' ');
+      `M${x(points[0].ts).toFixed(1)},${y(points[0].latency_ms).toFixed(1)} ` +
+      points.slice(1).map((p) => `L${x(p.ts).toFixed(1)},${y(p.latency_ms).toFixed(1)}`).join(' ');
     const areaD =
       `M${x(points[0].ts).toFixed(1)},${y(0).toFixed(1)} ` +
-      points.map((p) => `L${x(p.ts).toFixed(1)},${y(p.latency).toFixed(1)}`).join(' ') +
+      points.map((p) => `L${x(p.ts).toFixed(1)},${y(p.latency_ms).toFixed(1)}`).join(' ') +
       ` L${x(points[points.length - 1].ts).toFixed(1)},${y(0).toFixed(1)} Z`;
 
     const yTicks = [0, yNice / 2, yNice];
     const gridlines = yTicks
-      .map(
-        (t) =>
-          `<line class="latency-gridline" x1="${padding.left}" x2="${W - padding.right}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" />`,
-      )
+      .map((t) => `<line class="latency-gridline" x1="${padding.left}" x2="${W - padding.right}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" />`)
       .join('');
     const yLabels = yTicks
-      .map(
-        (t) =>
-          `<text class="latency-axis" x="${padding.left - 6}" y="${y(t).toFixed(1) + 3}" text-anchor="end">${t}ms</text>`,
-      )
+      .map((t) => `<text class="latency-axis" x="${padding.left - 6}" y="${(y(t) + 3).toFixed(1)}" text-anchor="end">${t}ms</text>`)
       .join('');
-
     const xTickCount = 4;
     const xLabels = Array.from({ length: xTickCount + 1 }, (_, i) => {
       const ts = tsMin + (i * tsRange) / xTickCount;
       const d = new Date(ts);
       const label = `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
-      const xv = x(ts);
       const anchor = i === 0 ? 'start' : i === xTickCount ? 'end' : 'middle';
-      return `<text class="latency-axis" x="${xv.toFixed(1)}" y="${H - 6}" text-anchor="${anchor}">${label}</text>`;
+      return `<text class="latency-axis" x="${x(ts).toFixed(1)}" y="${H - 6}" text-anchor="${anchor}">${label}</text>`;
     }).join('');
 
-    $latencyChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Average public endpoint latency over the last 24 hours">
-      ${gridlines}
-      <path class="latency-area" d="${areaD}" />
-      <path class="latency-line" d="${lineD}" />
-      ${yLabels}
-      ${xLabels}
-    </svg>`;
+    $latencyChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Average public endpoint latency over the last 24 hours">${gridlines}<path class="latency-area" d="${areaD}" /><path class="latency-line" d="${lineD}" />${yLabels}${xLabels}</svg>`;
 
     const avg = Math.round(latencies.reduce((s, v) => s + v, 0) / latencies.length);
-    const p95 =
-      latencies.slice().sort((a, b) => a - b)[Math.floor(latencies.length * 0.95)] ?? null;
+    const p95 = latencies.slice().sort((a, b) => a - b)[Math.floor(latencies.length * 0.95)] ?? null;
     $latencyMeta.textContent = `avg ${avg}ms · p95 ${p95}ms · ${points.length} samples`;
   }
 
-  async function fetchLatencyHistory() {
-    const res = await fetch(`/api/history?env=${currentEnv}&limit=1440`);
+  async function fetchStatus() {
+    const res = await fetch('/api/status');
+    if (!res.ok) return;
+    const snap = await res.json();
+    if (snap.error) return;
+    renderStatus(snap);
+    renderExchange(snap);
+    renderEndpoints(snap);
+  }
+
+  async function fetchHistory() {
+    const res = await fetch('/api/history?window=24h');
     if (!res.ok) {
       $latencyChart.innerHTML = '<div class="latency-chart-empty">Failed to load history</div>';
       return;
     }
-    const snapshots = await res.json();
-    renderLatencyChart(snapshots);
-  }
-
-  async function fetchChangelog() {
-    const res = await fetch(`/api/changelog?env=${currentEnv}&limit=20`);
-    if (!res.ok) {
-      $changelogBody.innerHTML = '<div class="error-text">Failed to load changelog</div>';
-      return;
-    }
-    const entries = await res.json();
-    if (!Array.isArray(entries) || entries.length === 0) {
-      $changelogBody.innerHTML = '<div class="loading-text">No changelog entries yet</div>';
-      return;
-    }
-    const items = entries.map((e) => {
-      const date = new Date(e.pub_date_ts).toISOString().slice(0, 10);
-      return `<div class="changelog-item">
-        <div class="changelog-title">
-          <a href="${escHtml(e.link)}" target="_blank" rel="noopener noreferrer">${escHtml(e.title)}</a>
-        </div>
-        <div class="changelog-summary">${escHtml(e.summary_ai)}</div>
-        <div class="changelog-meta">${date}</div>
-      </div>`;
-    });
-    $changelogBody.innerHTML = items.join('');
-  }
-
-  function renderAll(snap) {
-    currentSnapshot = snap;
-    renderStatus(snap);
-    renderExchange(snap);
-    renderEndpoints(snap);
-    renderRegions(snap);
-    renderWs(snap);
-    updateHistoryControls();
-  }
-
-  async function fetchSnapshot(ts) {
-    let url = `/api/status?env=${currentEnv}`;
-    if (ts != null) url += `&at=${ts}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.error ? null : data;
-  }
-
-  async function fetchAndRender() {
-    const snap = await fetchSnapshot(historyMode ? historyTs : null);
-    if (snap) renderAll(snap);
-  }
-
-  function startPolling() {
-    stopPolling();
-    pollTimer = setInterval(fetchAndRender, POLL_INTERVAL);
-  }
-  function stopPolling() {
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
-  }
-
-  async function ensureHistoryList() {
-    if (historyListEnv === currentEnv && historyList.length > 0) return;
-    const res = await fetch(`/api/history?env=${currentEnv}&limit=1440`);
-    if (!res.ok) return;
-    const list = await res.json();
-    historyList = list.map((s) => s.ts).sort((a, b) => a - b);
-    historyListEnv = currentEnv;
-  }
-
-  function enterHistory(ts) {
-    historyMode = true;
-    historyTs = ts;
-    stopPolling();
-    $historyBar.classList.add('active');
-    $histLive.style.display = '';
-    updateTitle();
-    updateHistoryControls();
-    fetchAndRender();
-  }
-
-  function exitHistory(refetch = true) {
-    historyMode = false;
-    historyTs = null;
-    $historyBar.classList.remove('active');
-    $histLive.style.display = 'none';
-    $histTs.textContent = 'live';
-    $histPrev.disabled = false;
-    $histNext.disabled = true;
-    updateTitle();
-    const url = new URL(location.href);
-    url.searchParams.delete('at');
-    history.replaceState(null, '', url);
-    startPolling();
-    if (refetch) fetchAndRender();
-  }
-
-  function updateHistoryControls() {
-    if (!historyMode) {
-      $histTs.textContent = 'live';
-      $histPrev.disabled = false;
-      $histNext.disabled = true;
-      return;
-    }
-    $histTs.textContent = historyTs ? new Date(historyTs).toLocaleString() : '—';
-    if (historyList.length) {
-      const idx = historyList.indexOf(historyTs);
-      $histPrev.disabled = idx <= 0;
-      $histNext.disabled = idx < 0 || idx >= historyList.length - 1;
-    } else {
-      $histPrev.disabled = true;
-      $histNext.disabled = true;
-    }
-  }
-
-  async function navHistory(direction) {
-    await ensureHistoryList();
-
-    if (!historyMode) {
-      const ref = currentSnapshot?.ts ?? Date.now();
-      let ts = null;
-      for (let i = historyList.length - 1; i >= 0; i--) {
-        if (historyList[i] < ref) {
-          ts = historyList[i];
-          break;
-        }
-      }
-      if (ts == null && historyList.length)
-        ts = historyList[historyList.length - 2] ?? historyList[0];
-      if (ts == null) ts = ref - 5 * 60 * 1000;
-      const url = new URL(location.href);
-      url.searchParams.set('at', ts);
-      history.pushState(null, '', url);
-      enterHistory(ts);
-      return;
-    }
-
-    if (historyList.length) {
-      const idx = historyList.indexOf(historyTs);
-      const newIdx = direction === 'prev' ? idx - 1 : idx + 1;
-      if (newIdx < 0 || newIdx >= historyList.length) return;
-      historyTs = historyList[newIdx];
-    } else {
-      historyTs = historyTs + (direction === 'prev' ? -5 * 60 * 1000 : 5 * 60 * 1000);
-    }
-    const url = new URL(location.href);
-    url.searchParams.set('at', historyTs);
-    history.pushState(null, '', url);
-    updateHistoryControls();
-    fetchAndRender();
-  }
-
-  function initCollapsible(header, body, startOpen) {
-    const card = header.closest('.card');
-    function applyState(open) {
-      body.classList.toggle('hidden', !open);
-      if (card) card.classList.toggle('collapsed', !open);
-      header.setAttribute('aria-expanded', String(open));
-    }
-    applyState(startOpen);
-    function toggle() {
-      applyState(body.classList.contains('hidden'));
-    }
-    header.addEventListener('click', toggle);
-    header.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        toggle();
-      }
-    });
+    const { series } = await res.json();
+    renderLatencyChart(series);
   }
 
   async function fetchVersion() {
@@ -615,55 +218,10 @@
   function init() {
     setTheme(getTheme());
     $themeToggle.addEventListener('click', cycleTheme);
-
-    initEnv();
-    $envProd.addEventListener('click', () => setEnv('prod'));
-    $envDemo.addEventListener('click', () => setEnv('demo'));
-
-    initCollapsible($changelogHeader, $changelogBody, false);
-    initCollapsible($endpointsHeader, $endpointsBody, true);
-
-    $histPrev.addEventListener('click', () => navHistory('prev'));
-    $histNext.addEventListener('click', () => navHistory('next'));
-    $histLive.addEventListener('click', (e) => {
-      e.preventDefault();
-      exitHistory();
-    });
-    $histReturnLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      exitHistory();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (
-        e.target &&
-        (e.target.tagName === 'INPUT' ||
-          e.target.tagName === 'TEXTAREA' ||
-          e.target.isContentEditable)
-      )
-        return;
-      if (e.key === 'ArrowLeft') navHistory('prev');
-      if (e.key === 'ArrowRight' && historyMode) navHistory('next');
-    });
-
-    const atParam = new URL(location.href).searchParams.get('at');
-    if (atParam) {
-      const ts = parseInt(atParam, 10);
-      if (Number.isFinite(ts) && ts > 0) {
-        historyMode = true;
-        historyTs = ts;
-        $historyBar.classList.add('active');
-        $histLive.style.display = '';
-        updateTitle();
-      }
-    }
-
-    fetchAndRender();
-    fetchChangelog();
-    fetchLatencyHistory();
-    if (!historyMode) startPolling();
+    fetchStatus();
+    fetchHistory();
     fetchVersion();
-    updateTitle();
+    setInterval(fetchStatus, POLL_INTERVAL);
   }
 
   if (document.readyState === 'loading') {
