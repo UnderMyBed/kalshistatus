@@ -31,7 +31,8 @@ function downsample<T>(arr: T[], max: number): T[] {
 }
 
 export async function handleApiStatus(request: Request, env: Env): Promise<Response> {
-  if (!isGetOrHead(request)) return new Response('Method Not Allowed', { status: 405, headers: CORS });
+  if (!isGetOrHead(request))
+    return new Response('Method Not Allowed', { status: 405, headers: CORS });
 
   const snapshot = await loadLatestSnapshot(env.DB);
   if (!snapshot) return Response.json({ error: 'no_data' }, { status: 404, headers: CORS });
@@ -50,7 +51,8 @@ export async function handleApiStatus(request: Request, env: Env): Promise<Respo
 }
 
 export async function handleApiHistory(request: Request, env: Env): Promise<Response> {
-  if (!isGetOrHead(request)) return new Response('Method Not Allowed', { status: 405, headers: CORS });
+  if (!isGetOrHead(request))
+    return new Response('Method Not Allowed', { status: 405, headers: CORS });
 
   const url = new URL(request.url);
   const window = url.searchParams.get('window') ?? '24h';
@@ -59,9 +61,7 @@ export async function handleApiHistory(request: Request, env: Env): Promise<Resp
 
   const snapshots = await readSnapshotsSince(env.DB, Date.now() - span);
   const points = snapshots.map((s) => {
-    const latencies = s.endpoints
-      .map((e) => e.latency_ms)
-      .filter((l): l is number => l != null);
+    const latencies = s.endpoints.map((e) => e.latency_ms).filter((l): l is number => l != null);
     const latency_ms = latencies.length
       ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
       : null;
@@ -75,7 +75,8 @@ export async function handleApiHistory(request: Request, env: Env): Promise<Resp
 }
 
 export async function handleBadge(request: Request, env: Env): Promise<Response> {
-  if (!isGetOrHead(request)) return new Response('Method Not Allowed', { status: 405, headers: CORS });
+  if (!isGetOrHead(request))
+    return new Response('Method Not Allowed', { status: 405, headers: CORS });
 
   const snapshot = await loadLatestSnapshot(env.DB);
   const status = (snapshot?.status ?? 'unknown') as OverallStatus;
@@ -94,7 +95,8 @@ export async function handleBadge(request: Request, env: Env): Promise<Response>
 }
 
 export function handleApiVersion(request: Request, env: Env): Response {
-  if (!isGetOrHead(request)) return new Response('Method Not Allowed', { status: 405, headers: CORS });
+  if (!isGetOrHead(request))
+    return new Response('Method Not Allowed', { status: 405, headers: CORS });
   return Response.json(
     { version: env.VERSION, commit: env.COMMIT_SHA },
     { headers: { ...CORS, 'Cache-Control': 'public, max-age=300' } },

@@ -16,7 +16,16 @@ function snap(ts: number, status: Snapshot['status'] = 'operational'): Snapshot 
     ts,
     status,
     exchange: { exchange_active: true, trading_active: true },
-    endpoints: [{ name: 'exchange_status', url: 'https://x/exchange/status', method: 'GET', latency_ms: 50, status: 'up', http_status: 200 }],
+    endpoints: [
+      {
+        name: 'exchange_status',
+        url: 'https://x/exchange/status',
+        method: 'GET',
+        latency_ms: 50,
+        status: 'up',
+        http_status: 200,
+      },
+    ],
   };
 }
 

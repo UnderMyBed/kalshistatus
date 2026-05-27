@@ -458,16 +458,12 @@ button:focus-visible {
   color: var(--status-unknown);
 }
 
-
 .endpoint-error {
   padding: 0 16px 6px 16px;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fg-subtle);
 }
-
-
-
 
 /* ── Footer ─────────────────────────────────────── */
 footer {
@@ -509,7 +505,6 @@ footer {
   font-size: 12px;
   color: var(--fg-subtle);
 }
-
 
 /* ── Mobile adjustments ──────────────────────────── */
 @media (max-width: 600px) {

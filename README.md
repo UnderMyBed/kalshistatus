@@ -26,15 +26,15 @@ It is **unofficial** and not affiliated with Kalshi. Data is best-effort.
 
 ## Public surfaces
 
-| Surface                                       | Purpose                            |
-| --------------------------------------------- | ---------------------------------- |
-| `https://kalshistatus.dev/`                   | Live dashboard                     |
-| `/api/status`                                 | JSON snapshot (latest)             |
-| `/api/history?window=24h\|7d\|30d`            | Recent snapshots                   |
-| `/api/version`                                | Deployed `{version, commit}`       |
-| `/badge.svg`                                  | Shields.io-style status badge      |
-| `/openapi.yaml`                               | OpenAPI 3.1 contract for `/api/*`  |
-| `/healthz`                                    | `{ok: true, ts}` liveness probe    |
+| Surface                            | Purpose                           |
+| ---------------------------------- | --------------------------------- |
+| `https://kalshistatus.dev/`        | Live dashboard                    |
+| `/api/status`                      | JSON snapshot (latest)            |
+| `/api/history?window=24h\|7d\|30d` | Recent snapshots                  |
+| `/api/version`                     | Deployed `{version, commit}`      |
+| `/badge.svg`                       | Shields.io-style status badge     |
+| `/openapi.yaml`                    | OpenAPI 3.1 contract for `/api/*` |
+| `/healthz`                         | `{ok: true, ts}` liveness probe   |
 
 ## Example: read live status
 
@@ -51,10 +51,10 @@ curl -s https://kalshistatus.dev/api/status \
   "trading_active": true,
   "endpoints": [
     { "name": "exchange_status", "status": "up", "latency_ms": 92 },
-    { "name": "markets_list",    "status": "up", "latency_ms": 64 },
-    { "name": "events_list",     "status": "up", "latency_ms": 92 },
-    { "name": "series_list",     "status": "up", "latency_ms": 305 }
-  ]
+    { "name": "markets_list", "status": "up", "latency_ms": 64 },
+    { "name": "events_list", "status": "up", "latency_ms": 92 },
+    { "name": "series_list", "status": "up", "latency_ms": 305 },
+  ],
 }
 ```
 

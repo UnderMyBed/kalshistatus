@@ -37,7 +37,9 @@ describe('runProbe', () => {
   it('writes major_outage when every endpoint returns 500', async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response(null, { status: 500 }));
     await runProbe(env, fetchFn);
-    const row = await env.DB.prepare('SELECT status FROM snapshots ORDER BY ts DESC LIMIT 1').first<{ status: string }>();
+    const row = await env.DB.prepare(
+      'SELECT status FROM snapshots ORDER BY ts DESC LIMIT 1',
+    ).first<{ status: string }>();
     expect(row!.status).toBe('major_outage');
   });
 });
@@ -51,7 +53,9 @@ describe('runPrune', () => {
       .bind(oldTs, 'operational', 1, 1, '[]')
       .run();
     await runPrune(env);
-    const row = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM snapshots').first<{ cnt: number }>();
+    const row = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM snapshots').first<{
+      cnt: number;
+    }>();
     expect(row!.cnt).toBe(0);
   });
 });

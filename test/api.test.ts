@@ -11,7 +11,16 @@ function snap(ts: number, status: Snapshot['status'], latency: number): Snapshot
     ts,
     status,
     exchange: { exchange_active: true, trading_active: true },
-    endpoints: [{ name: 'markets_list', url: 'https://x/markets', method: 'GET', latency_ms: latency, status: 'up', http_status: 200 }],
+    endpoints: [
+      {
+        name: 'markets_list',
+        url: 'https://x/markets',
+        method: 'GET',
+        latency_ms: latency,
+        status: 'up',
+        http_status: 200,
+      },
+    ],
   };
 }
 
@@ -50,7 +59,10 @@ describe('handleApiHistory', () => {
     await saveSnapshot(env.DB, snap(now - 500, 'operational', 200));
     const res = await handleApiHistory(new Request('https://x/api/history?window=24h'), env);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { window: string; series: { ts: number; latency_ms: number }[] };
+    const body = (await res.json()) as {
+      window: string;
+      series: { ts: number; latency_ms: number }[];
+    };
     expect(body.window).toBe('24h');
     expect(body.series).toHaveLength(2);
     expect(body.series[0].latency_ms).toBe(100);
@@ -63,7 +75,15 @@ describe('handleApiHistory', () => {
       stmts.push(
         env.DB.prepare(
           'INSERT INTO snapshots (ts, status, exchange_active, trading_active, endpoints) VALUES (?, ?, ?, ?, ?)',
-        ).bind(now - (900 - i) * 1000, 'operational', 1, 1, JSON.stringify([{ name: 'm', url: 'u', method: 'GET', latency_ms: 10, status: 'up', http_status: 200 }])),
+        ).bind(
+          now - (900 - i) * 1000,
+          'operational',
+          1,
+          1,
+          JSON.stringify([
+            { name: 'm', url: 'u', method: 'GET', latency_ms: 10, status: 'up', http_status: 200 },
+          ]),
+        ),
       );
     }
     await env.DB.batch(stmts);

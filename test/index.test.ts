@@ -20,7 +20,7 @@ describe('worker.fetch', () => {
   it('serves /healthz with ok:true and HSTS', async () => {
     const res = await call('/healthz');
     expect(res.status).toBe(200);
-    expect((await res.json() as { ok: boolean }).ok).toBe(true);
+    expect(((await res.json()) as { ok: boolean }).ok).toBe(true);
     expect(res.headers.get('Strict-Transport-Security')).toContain('max-age=31536000');
   });
 

@@ -43,16 +43,16 @@ a JSON API. This document is the long-form reference; the
 
 ## Components
 
-| Component            | File(s)                            | Purpose                                                                                   |
-| -------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------- |
-| Worker entry         | `src/index.ts`                     | Routes HTTP, applies security headers, dispatches cron.                                   |
-| Probe cron           | `src/cron.ts`                      | Probes 4 public REST endpoints, writes one snapshot row to D1.                            |
-| Kalshi client        | `src/kalshi-client.ts`             | REST probe execution, endpoint definitions.                                               |
-| Status determination | `src/status.ts`                    | Rolls public probes up to `operational` / `degraded` / `partial_outage` / `major_outage`. |
-| Storage              | `src/storage.ts`                   | D1 reads/writes for the `snapshots` table.                                                |
-| Edge cache           | `src/edge-cache.ts`                | `caches.default` for all public routes — no per-request D1 reads.                        |
-| HTTP API             | `src/api.ts`                       | `/api/status`, `/api/history`, `/api/version`, `/badge.svg`.                              |
-| Static page          | `public/`                          | Dashboard HTML, CSS, JS served via the `ASSETS` binding.                                  |
+| Component            | File(s)                | Purpose                                                                                   |
+| -------------------- | ---------------------- | ----------------------------------------------------------------------------------------- |
+| Worker entry         | `src/index.ts`         | Routes HTTP, applies security headers, dispatches cron.                                   |
+| Probe cron           | `src/cron.ts`          | Probes 4 public REST endpoints, writes one snapshot row to D1.                            |
+| Kalshi client        | `src/kalshi-client.ts` | REST probe execution, endpoint definitions.                                               |
+| Status determination | `src/status.ts`        | Rolls public probes up to `operational` / `degraded` / `partial_outage` / `major_outage`. |
+| Storage              | `src/storage.ts`       | D1 reads/writes for the `snapshots` table.                                                |
+| Edge cache           | `src/edge-cache.ts`    | `caches.default` for all public routes — no per-request D1 reads.                         |
+| HTTP API             | `src/api.ts`           | `/api/status`, `/api/history`, `/api/version`, `/badge.svg`.                              |
+| Static page          | `public/`              | Dashboard HTML, CSS, JS served via the `ASSETS` binding.                                  |
 
 ## Cron timeline
 
@@ -101,12 +101,12 @@ ADR.
 
 ### REST endpoints
 
-| Key               | Path                | Auth | Group  |
-| ----------------- | ------------------- | ---- | ------ |
-| `exchange_status` | `/exchange/status`  | none | public |
-| `markets_list`    | `/markets?limit=1`  | none | public |
-| `events_list`     | `/events?limit=1`   | none | public |
-| `series_list`     | `/series?limit=1`   | none | public |
+| Key               | Path               | Auth | Group  |
+| ----------------- | ------------------ | ---- | ------ |
+| `exchange_status` | `/exchange/status` | none | public |
+| `markets_list`    | `/markets?limit=1` | none | public |
+| `events_list`     | `/events?limit=1`  | none | public |
+| `series_list`     | `/series?limit=1`  | none | public |
 
 Status mapping per probe (`src/kalshi-client.ts`):
 
@@ -160,12 +160,12 @@ responses — they only advise clients. The first request through a cold
 edge node is a miss; subsequent requests within TTL are hits
 (`X-Cache: HIT`). There is no per-request D1 access on cache hits.
 
-| Route           | TTL   |
-| --------------- | ----- |
-| `/api/status`   | 60 s  |
-| `/api/history`  | 5 min |
-| `/api/version`  | 5 min |
-| `/badge.svg`    | 60 s  |
+| Route          | TTL   |
+| -------------- | ----- |
+| `/api/status`  | 60 s  |
+| `/api/history` | 5 min |
+| `/api/version` | 5 min |
+| `/badge.svg`   | 60 s  |
 
 See [ADR-0010](adr/0010-edge-caching-and-region-history.md) for the
 original rationale; ADR-0015 removes KV and makes the edge cache the
@@ -173,27 +173,27 @@ sole hot-read path.
 
 ## HTTP routes
 
-| Path            | Methods   | Description                                    |
-| --------------- | --------- | ---------------------------------------------- |
-| `/`             | GET, HEAD | Dashboard HTML (static asset via ASSETS)       |
-| `/badge.svg`    | GET, HEAD | SVG badge                                      |
-| `/healthz`      | GET, HEAD | `{ok: true, ts}`                               |
-| `/api/status`   | GET, HEAD | Latest snapshot                                |
-| `/api/history`  | GET, HEAD | Recent snapshots (`?window=24h\|7d\|30d`)      |
-| `/api/version`  | GET, HEAD | `{version, commit}`                            |
-| `/openapi.yaml` | GET, HEAD | OpenAPI 3.1 contract                           |
-| (all)           | OPTIONS   | CORS preflight (204)                           |
+| Path            | Methods   | Description                               |
+| --------------- | --------- | ----------------------------------------- |
+| `/`             | GET, HEAD | Dashboard HTML (static asset via ASSETS)  |
+| `/badge.svg`    | GET, HEAD | SVG badge                                 |
+| `/healthz`      | GET, HEAD | `{ok: true, ts}`                          |
+| `/api/status`   | GET, HEAD | Latest snapshot                           |
+| `/api/history`  | GET, HEAD | Recent snapshots (`?window=24h\|7d\|30d`) |
+| `/api/version`  | GET, HEAD | `{version, commit}`                       |
+| `/openapi.yaml` | GET, HEAD | OpenAPI 3.1 contract                      |
+| (all)           | OPTIONS   | CORS preflight (204)                      |
 
 ## Bindings and vars
 
-| Binding / var              | Type    | Purpose                                  |
-| -------------------------- | ------- | ---------------------------------------- |
-| `DB`                       | D1      | The `kalshi_status` database             |
-| `ASSETS`                   | Assets  | Static files (`public/`)                 |
-| `KALSHI_PROD_REST_BASE`    | var     | Base URL for Kalshi prod REST API        |
-| `SNAPSHOT_RETENTION_DAYS`  | var     | Days of snapshots to keep (default: 30)  |
-| `VERSION`                  | var     | Semantic version string                  |
-| `COMMIT_SHA`               | var     | Git commit SHA at deploy time            |
+| Binding / var             | Type   | Purpose                                 |
+| ------------------------- | ------ | --------------------------------------- |
+| `DB`                      | D1     | The `kalshi_status` database            |
+| `ASSETS`                  | Assets | Static files (`public/`)                |
+| `KALSHI_PROD_REST_BASE`   | var    | Base URL for Kalshi prod REST API       |
+| `SNAPSHOT_RETENTION_DAYS` | var    | Days of snapshots to keep (default: 30) |
+| `VERSION`                 | var    | Semantic version string                 |
+| `COMMIT_SHA`              | var    | Git commit SHA at deploy time           |
 
 There are no secrets. All probed endpoints are public and require no
 authentication.
@@ -244,15 +244,15 @@ design rationale.
 
 ## Comparison with kalshistatus.com
 
-|                  | kalshistatus.dev (this)              | kalshistatus.com              |
-| ---------------- | ------------------------------------ | ----------------------------- |
-| Audience         | Integrating engineers                | Consumer / trader             |
-| Hosting          | Cloudflare Workers (free tier)       | GCP (us-east4)                |
-| Status detection | Automated probes every 5 minutes     | Manual incident reports       |
-| REST latency     | Per-endpoint, with sparklines        | None                          |
-| Uptime windows   | 24h / 7d / 30d                       | "No incidents" indicator      |
-| Public JSON API  | OpenAPI 3.1, full snapshot           | None                          |
-| Embeddable badge | `/badge.svg` (Shields.io-compatible) | None                          |
+|                  | kalshistatus.dev (this)              | kalshistatus.com         |
+| ---------------- | ------------------------------------ | ------------------------ |
+| Audience         | Integrating engineers                | Consumer / trader        |
+| Hosting          | Cloudflare Workers (free tier)       | GCP (us-east4)           |
+| Status detection | Automated probes every 5 minutes     | Manual incident reports  |
+| REST latency     | Per-endpoint, with sparklines        | None                     |
+| Uptime windows   | 24h / 7d / 30d                       | "No incidents" indicator |
+| Public JSON API  | OpenAPI 3.1, full snapshot           | None                     |
+| Embeddable badge | `/badge.svg` (Shields.io-compatible) | None                     |
 
 The two pages don't compete — they answer different questions. This
 one is built for the engineer who needs to know whether their bug is

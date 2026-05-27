@@ -5,12 +5,12 @@ as any behavior change.
 
 ## Quick triage
 
-| You see                        | Look here first                                        |
-| ------------------------------ | ------------------------------------------------------ |
-| Site won't load                | `curl -sf https://kalshistatus.dev/healthz`            |
-| Headline status wrong          | `wrangler tail` for probe-cron output                  |
+| You see                        | Look here first                                         |
+| ------------------------------ | ------------------------------------------------------- |
+| Site won't load                | `curl -sf https://kalshistatus.dev/healthz`             |
+| Headline status wrong          | `wrangler tail` for probe-cron output                   |
 | `/api/status` stale by >10 min | Edge cache TTL expired and cron not landing — see below |
-| CI red on a PR                 | `gh run view <id> --log-failed`                        |
+| CI red on a PR                 | `gh run view <id> --log-failed`                         |
 
 ## Provisioning
 
@@ -131,10 +131,10 @@ whether the old code is compatible with the new schema.
 
 ## Schedule
 
-| Cron             | What it does                                    |
-| ---------------- | ----------------------------------------------- |
-| `*/5 * * * *`    | Probe 4 public REST endpoints, write 1 D1 row   |
-| `0 0 * * *`      | Prune `snapshots` rows older than 30 days       |
+| Cron          | What it does                                  |
+| ------------- | --------------------------------------------- |
+| `*/5 * * * *` | Probe 4 public REST endpoints, write 1 D1 row |
+| `0 0 * * *`   | Prune `snapshots` rows older than 30 days     |
 
 Retention is 30 days (`SNAPSHOT_RETENTION_DAYS` in `wrangler.toml`
 `[vars]`). To change it, update the var and document the reason in an

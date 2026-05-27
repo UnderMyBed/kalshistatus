@@ -122,7 +122,9 @@
     }
     $endpointsBody.innerHTML = endpoints
       .map((ep) => {
-        const sCls = ['up', 'degraded', 'down', 'unknown'].includes(ep.status) ? ep.status : 'unknown';
+        const sCls = ['up', 'degraded', 'down', 'unknown'].includes(ep.status)
+          ? ep.status
+          : 'unknown';
         const noteHtml = ep.error ? `<div class="endpoint-error">${escHtml(ep.error)}</div>` : '';
         return `<div class="endpoint-row">
           <span class="endpoint-name">${escHtml(ep.name)}</span>
@@ -156,7 +158,10 @@
 
     const lineD =
       `M${x(points[0].ts).toFixed(1)},${y(points[0].latency_ms).toFixed(1)} ` +
-      points.slice(1).map((p) => `L${x(p.ts).toFixed(1)},${y(p.latency_ms).toFixed(1)}`).join(' ');
+      points
+        .slice(1)
+        .map((p) => `L${x(p.ts).toFixed(1)},${y(p.latency_ms).toFixed(1)}`)
+        .join(' ');
     const areaD =
       `M${x(points[0].ts).toFixed(1)},${y(0).toFixed(1)} ` +
       points.map((p) => `L${x(p.ts).toFixed(1)},${y(p.latency_ms).toFixed(1)}`).join(' ') +
@@ -164,10 +169,16 @@
 
     const yTicks = [0, yNice / 2, yNice];
     const gridlines = yTicks
-      .map((t) => `<line class="latency-gridline" x1="${padding.left}" x2="${W - padding.right}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" />`)
+      .map(
+        (t) =>
+          `<line class="latency-gridline" x1="${padding.left}" x2="${W - padding.right}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" />`,
+      )
       .join('');
     const yLabels = yTicks
-      .map((t) => `<text class="latency-axis" x="${padding.left - 6}" y="${(y(t) + 3).toFixed(1)}" text-anchor="end">${t}ms</text>`)
+      .map(
+        (t) =>
+          `<text class="latency-axis" x="${padding.left - 6}" y="${(y(t) + 3).toFixed(1)}" text-anchor="end">${t}ms</text>`,
+      )
       .join('');
     const xTickCount = 4;
     const xLabels = Array.from({ length: xTickCount + 1 }, (_, i) => {
@@ -181,7 +192,8 @@
     $latencyChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Average public endpoint latency over the last 24 hours">${gridlines}<path class="latency-area" d="${areaD}" /><path class="latency-line" d="${lineD}" />${yLabels}${xLabels}</svg>`;
 
     const avg = Math.round(latencies.reduce((s, v) => s + v, 0) / latencies.length);
-    const p95 = latencies.slice().sort((a, b) => a - b)[Math.floor(latencies.length * 0.95)] ?? null;
+    const p95 =
+      latencies.slice().sort((a, b) => a - b)[Math.floor(latencies.length * 0.95)] ?? null;
     $latencyMeta.textContent = `avg ${avg}ms · p95 ${p95}ms · ${points.length} samples`;
   }
 
