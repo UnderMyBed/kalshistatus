@@ -5,14 +5,12 @@ const JSON_HEADERS = { 'content-type': 'application/json' };
 
 describe('probeEndpoint', () => {
   it('reports up with latency and parsed body on a 200 JSON response', async () => {
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ exchange_active: true }), {
-          status: 200,
-          headers: JSON_HEADERS,
-        }),
-      );
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ exchange_active: true }), {
+        status: 200,
+        headers: JSON_HEADERS,
+      }),
+    );
     const { probe, body } = await probeEndpoint(
       { name: 'exchange_status', url: 'https://x/exchange/status', method: 'GET' },
       fetchFn,
