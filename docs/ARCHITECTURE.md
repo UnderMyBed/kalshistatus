@@ -162,8 +162,8 @@ edge node is a miss; subsequent requests within TTL are hits
 
 | Route           | TTL   |
 | --------------- | ----- |
-| `/api/status`   | 15 s  |
-| `/api/history`  | 60 s  |
+| `/api/status`   | 60 s  |
+| `/api/history`  | 5 min |
 | `/api/version`  | 5 min |
 | `/badge.svg`    | 60 s  |
 
