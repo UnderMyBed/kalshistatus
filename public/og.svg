@@ -27,6 +27,6 @@
     @UnderMyBed
   </text>
   <text x="1140" y="580" text-anchor="end" font-family="ui-monospace, 'JetBrains Mono', monospace" font-size="20" fill="#525252">
-    cloudflare workers · grafana cloud
+    cloudflare workers · d1 · edge cache
   </text>
 </svg>
