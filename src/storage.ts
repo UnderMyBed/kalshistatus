@@ -1,50 +1,65 @@
-import type { Environment, Snapshot, RegionProbe } from './types';
+import type { Snapshot, UptimeWindow } from './types';
+
+interface SnapshotRow {
+  ts: number;
+  status: string;
+  exchange_active: number;
+  trading_active: number;
+  endpoints: string;
+}
+
+function rowToSnapshot(row: SnapshotRow): Snapshot {
+  return {
+    ts: row.ts,
+    status: row.status as Snapshot['status'],
+    exchange: {
+      exchange_active: row.exchange_active === 1,
+      trading_active: row.trading_active === 1,
+    },
+    endpoints: JSON.parse(row.endpoints) as Snapshot['endpoints'],
+  };
+}
 
 export async function saveSnapshot(db: D1Database, snap: Snapshot): Promise<void> {
   await db
-    .prepare('INSERT OR REPLACE INTO snapshots (ts, environment, payload) VALUES (?, ?, ?)')
-    .bind(snap.ts, snap.environment, JSON.stringify(snap))
+    .prepare(
+      'INSERT OR REPLACE INTO snapshots (ts, status, exchange_active, trading_active, endpoints) VALUES (?, ?, ?, ?, ?)',
+    )
+    .bind(
+      snap.ts,
+      snap.status,
+      snap.exchange.exchange_active ? 1 : 0,
+      snap.exchange.trading_active ? 1 : 0,
+      JSON.stringify(snap.endpoints),
+    )
     .run();
 }
 
-export async function loadLatestSnapshot(
-  db: D1Database,
-  environment: Environment,
-): Promise<Snapshot | null> {
+export async function loadLatestSnapshot(db: D1Database): Promise<Snapshot | null> {
   const row = await db
-    .prepare('SELECT payload FROM snapshots WHERE environment = ? ORDER BY ts DESC LIMIT 1')
-    .bind(environment)
-    .first<{ payload: string }>();
-  if (!row) return null;
-  return JSON.parse(row.payload) as Snapshot;
+    .prepare('SELECT * FROM snapshots ORDER BY ts DESC LIMIT 1')
+    .first<SnapshotRow>();
+  return row ? rowToSnapshot(row) : null;
 }
 
-export async function readSnapshotHistory(
-  db: D1Database,
-  environment: Environment,
-  limit: number,
-): Promise<Snapshot[]> {
-  const rows = await db
-    .prepare('SELECT payload FROM snapshots WHERE environment = ? ORDER BY ts DESC LIMIT ?')
-    .bind(environment, limit)
-    .all<{ payload: string }>();
-  return rows.results.map((r) => JSON.parse(r.payload) as Snapshot);
+export async function readSnapshotsSince(db: D1Database, sinceMs: number): Promise<Snapshot[]> {
+  const { results } = await db
+    .prepare('SELECT * FROM snapshots WHERE ts >= ? ORDER BY ts ASC')
+    .bind(sinceMs)
+    .all<SnapshotRow>();
+  return results.map(rowToSnapshot);
 }
 
-export async function readSnapshotAt(
-  db: D1Database,
-  environment: Environment,
-  ts: number,
-): Promise<Snapshot | null> {
-  const tolerance = 5 * 60 * 1000;
+export async function computeUptime(db: D1Database, sinceMs: number): Promise<UptimeWindow> {
   const row = await db
     .prepare(
-      `SELECT payload FROM snapshots WHERE environment = ? AND ts BETWEEN ? AND ? ORDER BY ABS(ts - ?) ASC LIMIT 1`,
+      "SELECT COUNT(*) AS total, SUM(CASE WHEN status IN ('operational','degraded') THEN 1 ELSE 0 END) AS ok FROM snapshots WHERE ts >= ?",
     )
-    .bind(environment, ts - tolerance, ts + tolerance, ts)
-    .first<{ payload: string }>();
-  if (!row) return null;
-  return JSON.parse(row.payload) as Snapshot;
+    .bind(sinceMs)
+    .first<{ total: number; ok: number | null }>();
+  const total = row!.total;
+  const ok = row!.ok ?? 0;
+  return { total_count: total, ok_count: ok, pct: total === 0 ? 0 : (ok / total) * 100 };
 }
 
 export async function pruneSnapshots(
@@ -54,35 +69,4 @@ export async function pruneSnapshots(
 ): Promise<void> {
   const cutoff = nowMs - retentionDays * 24 * 60 * 60 * 1000;
   await db.prepare('DELETE FROM snapshots WHERE ts < ?').bind(cutoff).run();
-}
-
-export async function saveRegionProbe(
-  db: D1Database,
-  environment: Environment,
-  probe: RegionProbe,
-): Promise<void> {
-  await db
-    .prepare(
-      'INSERT OR REPLACE INTO region_probes (environment, region, probed_at, payload) VALUES (?, ?, ?, ?)',
-    )
-    .bind(environment, probe.region, probe.probed_at, JSON.stringify(probe))
-    .run();
-}
-
-export async function loadRecentRegionProbes(
-  db: D1Database,
-  environment: Environment,
-  sinceMs: number,
-): Promise<RegionProbe[]> {
-  const rows = await db
-    .prepare(
-      `SELECT payload, MAX(probed_at) AS latest
-       FROM region_probes
-       WHERE environment = ? AND probed_at >= ?
-       GROUP BY region
-       ORDER BY latest DESC`,
-    )
-    .bind(environment, sinceMs)
-    .all<{ payload: string }>();
-  return rows.results.map((r) => JSON.parse(r.payload) as RegionProbe);
 }
