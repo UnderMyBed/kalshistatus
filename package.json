@@ -13,7 +13,7 @@
     "fmt:check": "prettier --check ."
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.16.9",
+    "@cloudflare/vitest-pool-workers": "^0.16.13",
     "@cloudflare/workers-types": "^4.20251101.0",
     "prettier": "^3.3.3",
     "typescript": "^5.5.3",
